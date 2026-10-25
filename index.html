@@ -337,13 +337,13 @@ textarea{ width:100%; min-height:5em; padding:.6rem .7rem; border:1px solid var(
 /* ═══════════ 勉強の場(本番) ═══════════
    データは非公開リポジトリの study.json に保存。鍵は招待リンクの # の後ろに入っていて、ページ本体には書かない。
    リアルタイムではない:45秒ごとに読み直す。書き込むときは、最新を読んでから書く(ぶつかったら読み直して書き直す) */
-const APP_VERSION = "2026-10-25 s3";
+const APP_VERSION = "2026-10-25 s5";
 const SUBJECTS = ["数学", "英語", "国語", "理科", "社会", "その他"];
 const CONF_KEY = "study-conf";
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 let conf = lsGet(CONF_KEY, null);   // { repo, token, branch, me }
-const blankData = () => ({ version: 1, admin: null, linkVer: 1, members: [], qs: [], probs: [], books: [], bookLog: [], battles: [], room: { on: {}, log: [] }, presets: [], grants: {}, fb: [], ownerPub: null, sysAt: 0, events: [] });
+const blankData = () => ({ version: 1, admin: null, linkVer: 1, members: [], qs: [], probs: [], books: [], bookLog: [], battles: [], room: { on: {}, log: [] }, presets: [], grants: {}, fb: [], ownerPub: null, sysAt: 0, events: [], ideas: [] });
 let S = blankData(), sha = null, loaded = false, loadErr = "", busy = false;
 
 /* ───── GitHub ───── */
@@ -352,26 +352,38 @@ const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/
 async function gh(path, opts){
   opts = opts || {};
   const r = await fetch("https://api.github.com/repos/" + conf.repo + "/contents/" + path + (opts.method ? "" : "?ref=" + (conf.branch || "main") + "&t=" + Date.now()), {
-    method: opts.method || "GET", headers: { Authorization: "Bearer " + conf.token, Accept: "application/vnd.github+json", "Content-Type": "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined });
+    method: opts.method || "GET", cache: "no-store", headers: { Authorization: "Bearer " + conf.token, Accept: "application/vnd.github+json", "Content-Type": "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined });
   return r;
 }
+const staleShas = new Set();   // 自分が書いて古くなった版。GitHubが書いた直後にこれを返したら、待って読み直す
+let lastGood = null;           // 自分が最後に書いた中身と版
 async function load(){
-  const r = await gh("study.json");
+  for (let k = 0; k < 6; k++) {
+    const r = await gh("study.json");
+    if (r.ok) { const j = await r.json(); if (staleShas.has(j.sha) && k < 5) { await new Promise(z => setTimeout(z, 700 + k * 300)); continue; }
+      if (staleShas.has(j.sha) && lastGood) { S = JSON.parse(JSON.stringify(lastGood.data)); sha = lastGood.sha; loaded = true; return; }
+      S = Object.assign(blankData(), JSON.parse(b64dec(j.content))); sha = j.sha; loaded = true; return; }
+    return loadFail(r);
+  }
+}
+async function loadFail(r){
   if (r.status === 404) { S = blankData(); sha = null; loaded = true; return; }
-  if (r.status === 401 || r.status === 403) throw new Error("鍵が使えない(招待リンクが古いか、鍵の期限が切れている)");
-  if (!r.ok) throw new Error("読み込めない(" + r.status + ")");
-  const j = await r.json(); S = Object.assign(blankData(), JSON.parse(b64dec(j.content))); sha = j.sha; loaded = true;
+  if (r.status === 401) throw new Error("鍵が使えない(招待リンクが古いか、鍵の期限が切れている)");
+  if (r.status === 403) throw new Error("鍵に読む許可がない、またはGitHubの回数制限(403)。少し待ってからもう一度");
+  throw new Error("読み込めない(" + r.status + ")");
 }
 /* 最新を読んで、変更を当てて、書く。ぶつかったらやり直す */
 async function mutate(fn, msg){
   if (busy) return false; busy = true;
   try {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 7; i++) {
       await load(); const res = fn(S); if (res === false) return false;
       const r = await gh("study.json", { method: "PUT", body: { message: msg || "勉強の場", content: b64enc(JSON.stringify(S)), branch: conf.branch || "main", ...(sha ? { sha } : {}) } });
-      if (r.ok) { sha = (await r.json()).content.sha; return true; }
+      if (r.ok) { if (sha) staleShas.add(sha); sha = (await r.json()).content.sha; lastGood = { sha, data: JSON.parse(JSON.stringify(S)) }; return true; }
+      if (r.status === 403) throw new Error("書き込めない(403)。鍵の Contents が Read and write になっているか確かめて");
       if (r.status !== 409 && r.status !== 422) throw new Error("書き込めない(" + r.status + ")");
-      await new Promise(z => setTimeout(z, 300 + Math.random() * 500));
+      if (sha) staleShas.add(sha);
+      await new Promise(z => setTimeout(z, 600 + i * 500 + Math.random() * 500));
     }
     throw new Error("ほかの人と同時に書き込みがぶつかった。もう一度押して");
   } catch (e) { toast(e.message); return false; }
@@ -416,7 +428,7 @@ function guide(){
   return '<div class="sect manual"><h3>説明書<small>勉強の場</small></h3>' +
     '<h4>これは何</h4><p>勉強の質問をしたり、問題を出し合ったり、一緒に勉強したりする場所。学校で忙しくても、休み時間の数分で使えるように作ってる。</p>' +
     '<h4>使い方</h4><ol><li><b>作業部屋</b>で「今から勉強する」を押すと、ほかの人に勉強中だと伝わる。<b>勉強会</b>の予定もここにある</li><li><b>勝負</b>で、だれかの募集に入ると勝負できる。自分で募集もできる</li>' +
-      '<li><b>質問板</b>に分からない問題を書く。気づいた人があとで答える</li><li><b>問題</b>で、今日の1問や、みんなの問題集からランダムな1問を解く</li><li><b>出す</b>で、問題を出したり、自分の問題集を登録したりする</li></ol>' +
+      '<li><b>質問板</b>に分からない問題を書く。気づいた人があとで答える</li><li><b>問題</b>で、今日の1問や、ランダムな1問を解く。<b>みんなの問題</b>はメンバーが「出す」で出した問題、<b>みんなの問題集</b>はメンバーが登録した問題集のこと</li><li><b>出す</b>で、問題を出したり、自分の問題集を登録したりする</li><li>不具合やほしい機能は<b>意見箱</b>へ。それをもとに直す</li></ol>' +
     '<h4>リアルタイムではない</h4><p>ほかの人が書いたことや打った手は、<b>だいたい1分以内</b>にこっちの画面に出る。すぐには出ないので、勝負はどれも「自分の空いた時間に進める」形になってる。同じ時間にいなくていい。</p>' +
     '<h4>ここにいる人</h4><div class="tasks">' + S.members.map(m => "<span>" + esc(m.name) + "</span>").join("") + "</div>" +
     '<h4>友達を呼ぶ</h4><p>このリンクを送れば、だれでも入れる。</p><div class="chal-form"><input id="invlink" readonly value="' + esc(inviteLink()) + '" aria-label="招待リンク"><button type="button" class="btn sm" id="copylink">コピー</button></div>' +
@@ -472,7 +484,7 @@ function problems(){
     pick = '<div class="pick"><div class="note">' + esc(nameBy(b.by)) + 'の問題集から</div><div class="big">' + esc(b.name) + " " + esc(b.kind) + " " + randPick.no + '</div><div class="note">' + esc(b.sub) + "</div>" +
       (done ? '<div class="ans ' + (done.ok ? "up" : "down") + '">' + (done.ok ? "解けた" : "解けなかった") + "</div>" : '<div class="ctl" style="justify-content:center"><button type="button" class="btn sm" data-bookdone="1">解けた</button><button type="button" class="btn ghost sm" data-bookdone="0">解けなかった</button></div>') + "</div>"; } }
   return '<div class="sect"><h3>今日の1問<small>いちばん新しい問題</small></h3>' + (today ? probCard(today, true) : '<p class="empty">まだ問題がない。「出す」から出してみて。</p>') + "</div>" +
-    '<div class="sect"><h3>ランダムで1問<small>みんなが登録したものから</small></h3><div class="ctl"><button type="button" class="btn sm" data-rand="prob">みんなの問題から</button><button type="button" class="btn sm" data-rand="book">みんなの問題集から</button></div>' + (pick ? '<div style="margin-top:.6rem">' + pick + "</div>" : "") + "</div>" +
+    '<div class="sect"><h3>ランダムで1問<small>みんなが登録したものから</small></h3><p class="note" style="margin:0 0 .3rem"><b>みんなの問題</b>は、メンバーが「出す」タブで出した問題。<b>みんなの問題集</b>は、メンバーが登録した問題集で、「青チャート数学IA 例題87」のように解く場所が出る(手元の問題集で解いて、自分で丸つけ)。</p><div class="ctl"><button type="button" class="btn sm" data-rand="prob">みんなの問題から</button><button type="button" class="btn sm" data-rand="book">みんなの問題集から</button></div>' + (pick ? '<div style="margin-top:.6rem">' + pick + "</div>" : "") + "</div>" +
     (list.length > 1 ? '<div class="sect"><h3>前の問題</h3>' + list.slice(1, 30).map(p => probCard(p, false)).join("") + "</div>" : "");
 }
 function make(){
@@ -536,6 +548,7 @@ function battles(){
   if (viewing) return reversiView();
   const list = S.battles.slice().sort((a, b) => ({ open: 0, play: 1, done: 2 }[a.state] - { open: 0, play: 1, done: 2 }[b.state]) || b.at - a.at).slice(0, 40);
   return '<div class="sect"><h3>勝負を募集する</h3><div class="chal-form"><select id="bttype" aria-label="種類">' + Object.entries(BT_TYPES).map(([k, l]) => '<option value="' + k + '">' + l + "</option>").join("") + '</select><select id="btn" aria-label="問題数"><option value="5">5問</option><option value="10">10問</option></select><select id="btcap" aria-label="人数"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option></select><button type="button" class="btn sm" id="btopen">募集する</button></div>' +
+      '<dl class="gloss" style="margin:.5rem 0 0;font-size:.84rem"><dt>計算タイムアタック</dt><dd>かけ算・たし算・2乗の暗算が、毎回ちがう問題で出る</dd><dt>みんなの問題から</dt><dd>メンバーが「出す」タブで出した問題のうち、選択肢つきのものからランダムに出る。足りない分は計算の問題で埋める</dd><dt>リバーシ</dt><dd>2人で交代に1手ずつ</dd></dl>' +
       '<p class="note" style="margin:.4rem 0 0">人数がそろうと勝負が始まる。問題の勝負は、全員が同じ問題をそれぞれ空いた時間に解いて、正解数とタイムで順位が決まる。リバーシは2人で、交代で1手ずつ。どれも同時にいなくていい。</p></div>' +
     '<div class="sect"><h3>勝負の一覧<small>' + S.battles.filter(x => x.state === "open").length + "件 募集中</small></h3>" + (list.length ? list.map(battleCard).join("") : '<p class="empty">まだ勝負はない。募集してみて。</p>') + "</div>";
 }
@@ -606,8 +619,10 @@ async function ghOwner(path){ const r = await fetch("https://api.github.com/repo
   if (r.status === 404) return null; if (!r.ok) throw new Error(path + " が読めない(" + r.status + ")"); const j = await r.json(); return JSON.parse(b64dec(j.content)); }
 const dkey = d => d.toISOString().slice(0, 10);
 async function buildSource(){
-  const [stats, pre, staff, amb, struct, notes] = await Promise.all(["docs/data/stats.json", "roadmap/gov/prestige.json", "roadmap/gov/staff.json", "roadmap/gov/ambition.json", "roadmap/gov/structure.json", "roadmap/gov/notes.json"].map(p => ghOwner(p).catch(() => null)));
-  const src = { owner: nameBy(S.admin), at: Date.now() };
+  const FILES = ["docs/data/stats.json", "roadmap/gov/prestige.json", "roadmap/gov/staff.json", "roadmap/gov/ambition.json", "roadmap/gov/structure.json", "roadmap/gov/notes.json"], read = {};
+  const [stats, pre, staff, amb, struct, notes] = await Promise.all(FILES.map(p => ghOwner(p).then(v => { read[p] = v ? "ok" : "ない"; return v; }).catch(e => { read[p] = e.message; return null; })));
+  if (FILES.every(p => read[p] !== "ok")) throw new Error("体制のデータが1つも読めない。リポジトリ名(" + ownerConf.repo + ")と鍵を確かめて");
+  const src = { owner: nameBy(S.admin), at: Date.now(), read };
   if (stats && stats.power_history && stats.power_history.length) { const ph = stats.power_history.slice(-30), last = ph[ph.length - 1].power, prev = (ph[ph.length - 8] || ph[0]).power;
     src.power = { last: Math.round(last * 10) / 10, diff: Math.round((last - prev) * 10) / 10, series: ph.map(x => Math.round(x.power * 10) / 10), from: ph[0].date }; }
   if (stats && stats.ministry_latest) { const ml = stats.ministry_latest; src.breakdown = { land: Math.round(ml.reduce((a, x) => a + (x.territory || 0), 0)), depth: Math.round(ml.reduce((a, x) => a + (x.dominance || 0), 0) / Math.max(1, ml.length) * 10) / 10 }; }
@@ -642,12 +657,21 @@ function filterFor(src, allow){
 
 /* ───── 管理者:書き出す ───── */
 let exporting = false;
-async function ghPutStudy(path, obj, msg){ let cur = null; const g = await gh(path); if (g.ok) cur = (await g.json()).sha;
-  const r = await gh(path, { method: "PUT", body: { message: msg, content: b64enc(JSON.stringify(obj)), branch: conf.branch || "main", ...(cur ? { sha: cur } : {}) } }); if (!r.ok) throw new Error(path + " に書けない(" + r.status + ")"); }
+const sysSha = {};
+async function ghPutStudy(path, obj, msg){
+  for (let i = 0; i < 6; i++) {
+    let cur = sysSha[path] || null; const g = await gh(path); if (g.ok) { const j = await g.json(); if (!staleShas.has(j.sha)) cur = j.sha; }
+    const r = await gh(path, { method: "PUT", body: { message: msg, content: b64enc(JSON.stringify(obj)), branch: conf.branch || "main", ...(cur ? { sha: cur } : {}) } });
+    if (r.ok) { if (cur) staleShas.add(cur); sysSha[path] = (await r.json()).content.sha; return; }
+    if (r.status !== 409 && r.status !== 422) throw new Error(path + " に書けない(" + r.status + ")");
+    if (cur) staleShas.add(cur); delete sysSha[path]; await new Promise(z => setTimeout(z, 700 + i * 500));
+  }
+  throw new Error(path + " に書けない(何度もぶつかった)");
+}
 async function exportSys(){
   if (!isAdmin() || !ownerConf || exporting) return false; exporting = true;
   try {
-    const k = await ensureKeys(); sysSource = await buildSource(); sysSourceErr = "";
+    const k = await ensureKeys(); await load(); sysSource = await buildSource(); sysSourceErr = "";
     const used = new Set(S.members.map(m => m.preset).filter(Boolean)), grants = {};
     for (const p of S.presets || []) {
       if (!used.has(p.id)) continue;
@@ -666,7 +690,7 @@ async function exportSys(){
 }
 
 /* ───── メンバー:読む ───── */
-let sysData = null, sysErr = "", sysLoading = false, sysTab = lsGet("study-systab", "intro"), sysPage = "home";
+let sysGrantAt = 0, sysData = null, sysErr = "", sysLoading = false, sysTab = lsGet("study-systab", "intro"), sysPage = "home";
 const SL = lsGet("study-sys-local", { pins: [], quiz: {}, preds: [], chals: [], seen: [], draft: "" });   // 君だけのもの(この端末にだけ)
 const saveSL = () => lsSet("study-sys-local", SL);
 async function loadSysData(){
@@ -677,7 +701,7 @@ async function loadSysData(){
     if (!S.ownerPub || S.ownerPub.kid !== g.okid) throw new Error("鍵が古い。" + nameBy(S.admin) + "が次に「最新にする」を押すと直る");
     const sk = await shared(S.ownerPub.jwk), raw = await dec(sk, mine, true), pk = await crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["decrypt"]);
     const r = await gh("sys/" + g.preset + ".json"); if (!r.ok) throw new Error("体制のデータが読めない(" + r.status + ")");
-    const file = JSON.parse(b64dec((await r.json()).content)); sysData = JSON.parse(await dec(pk, file));
+    const file = JSON.parse(b64dec((await r.json()).content)); sysData = JSON.parse(await dec(pk, file)); sysGrantAt = g.at;
   } catch (e) { sysErr = e.message; sysData = null; }
   finally { sysLoading = false; }
 }
@@ -734,7 +758,7 @@ async function decryptMine(){ const k = await ensureKeys(); for (const x of myFb
 function sysArea(){
   const D = sysData;
   if (sysLoading) return '<div class="sect"><p class="empty">読み込み中…</p></div>';
-  if (!D) return '<div class="sect"><p class="empty">' + esc(sysErr || "まだ見られない") + '</p><button type="button" class="btn ghost sm" id="sysreload">もう一度</button></div>';
+  if (!D) return '<div class="sect"><p class="empty">' + esc(sysErr || "まだ見られない") + '</p><p class="note">' + esc(nameBy(S.admin)) + 'の端末が開かれると、自動で届く。届いたら「もう一度」を押す。</p><button type="button" class="btn ghost sm" id="sysreload">もう一度</button></div>';
   if (sysPage !== "home") { const m = (D.mins || []).find(x => x.id === sysPage); if (m) return sysMinPage(D, m); sysPage = "home"; }
   const M = D.mins || [], X = D.mechs || [], F = D.flags || {};
   const P = {
@@ -790,7 +814,27 @@ function presetPanel(p){
     MECH_GROUPS.map(g => '<div class="g">仕組み:' + esc(g) + "</div>" + MECHS.filter(x => x.g === g).map(x => sw(x.id, x.name)).join("")).join("") +
     '</div><div class="allbtns"><button type="button" class="btn ghost sm" data-allowall="1">全部見せる</button><button type="button" class="btn ghost sm" data-allowall="0">全部隠す</button><button type="button" class="btn ghost sm" data-peekall="1">中身を全部ひらく</button><button type="button" class="btn ghost sm" data-peekall="0">中身を全部とじる</button></div>';
 }
+/* その人に、今の体制が届いているか */
+function grantState(m){
+  if (!m.preset) return "";
+  const g = (S.grants || {})[m.id], pubs = m.pubs || [], tag = (t, ok) => '<span class="note" style="color:var(--' + (ok ? "ok" : "warn") + ')">' + t + "</span>";
+  if (!pubs.length) return tag("その人がまだ一度も開いていない(開くと鍵ができる)", false);
+  if (!ownerConf) return tag("まだ届いていない:上で体制のデータにつなぐ", false);
+  if (!g || g.preset !== m.preset) return tag("まだ届いていない:「最新にする」を押す", false);
+  if (pubs.some(p => !(g.keys || []).some(k => k.kid === p.kid))) return tag("新しい端末がある:「最新にする」を押す", false);
+  if (!S.ownerPub || g.okid !== S.ownerPub.kid) return tag("鍵が古い:「最新にする」を押す", false);
+  return tag("見られる(" + ago(g.at) + "に届けた)", true);
+}
+/* 見せ方を変えたら、少し待ってから自動で最新にする */
+let autoExportTimer = null;
+const needsExport = () => S.members.some(m => m.preset && (m.pubs || []).length && !/見られる/.test(grantState(m)));
+function scheduleExport(){ if (!isAdmin() || !ownerConf) return; clearTimeout(autoExportTimer); autoExportTimer = setTimeout(async () => { if (await exportSys()) keepY(); }, 2500); }
+let previewPreset = null;
 function adminSys(){
+  if (previewPreset) { const p0 = (S.presets || []).find(x => x.id === previewPreset);
+    if (p0 && sysSource) { const keep = sysData; sysData = filterFor(sysSource, p0.allow); const html = sysArea(); sysData = keep;
+      return '<div class="lock"><span class="ic" aria-hidden="true">👀</span><span>「' + esc(p0.name) + '」を選んだ人には、こう見える(確かめるだけ。押しても何も送られない)。<button type="button" class="btn ghost sm" id="closepreview" style="margin-left:.4rem">確かめるのをやめる</button></span></div>' + html; }
+    previewPreset = null; }
   const k = lsGet(KEYS_KEY, null), mineKey = k && S.ownerPub && S.ownerPub.kid === k.kid;
   const presets = S.presets || []; if (!editPreset && presets[0]) editPreset = presets[0].id; const p = presets.find(x => x.id === editPreset);
   const inbox = (S.fb || []).slice().sort((a, b) => b.at - a.at);
@@ -799,11 +843,12 @@ function adminSys(){
     '<div class="chal-form"><input id="orepo" placeholder="ユーザー名/notion-daily" value="' + esc(ownerConf ? ownerConf.repo : "") + '" aria-label="体制のリポジトリ"><input id="otoken" type="password" placeholder="' + (ownerConf ? "(入れ直すときだけ)" : "読むための鍵") + '" aria-label="体制の鍵"><button type="button" class="btn ghost sm" id="oconnect">' + (ownerConf ? "入れ直す" : "つなぐ") + "</button></div>" +
     (ownerConf ? '<div class="ctl"><button type="button" class="btn sm" id="sysexport"' + (exporting ? " disabled" : "") + ">" + (exporting ? "書き出し中…" : "最新にする") + '</button><button type="button" class="btn ghost sm" id="sysread">データを読み直す</button><span class="note">最後に書き出した:' + (S.sysAt ? ago(S.sysAt) : "まだ") + "</span></div>" : "") +
     (sysSourceErr ? '<p class="err">' + esc(sysSourceErr) + "</p>" : "") +
+    (sysSource && sysSource.read ? '<div class="sub-h">読めたもの</div><div class="tasks">' + [["docs/data/stats.json", "国力・省の数字"], ["roadmap/gov/prestige.json", "威信"], ["roadmap/gov/staff.json", "作戦期"], ["roadmap/gov/ambition.json", "偉業"], ["roadmap/gov/structure.json", "省のSTAGE・WAVE"], ["roadmap/gov/notes.json", "省の目的"]].map(([f, l]) => '<span title="' + esc(f) + '" style="' + (sysSource.read[f] === "ok" ? "" : "opacity:.55;text-decoration:line-through") + '">' + (sysSource.read[f] === "ok" ? "✓ " : "✗ ") + esc(l) + "</span>").join("") + '</div><p class="note" style="margin:.3rem 0 0">省 ' + (sysSource.mins || []).length + "つ。✗ のものは、見せる設定にしても相手には出ない。</p>" : "") +
     (S.ownerPub && !mineKey ? '<p class="note">管理の鍵は別の端末にある。この端末で「最新にする」を押すと、管理の鍵がこの端末に移る(前の端末に届いた感想は、前の端末でしか読めない)。</p>' : "") +
     '<p class="note" style="margin:.5rem 0 0">数字が変わったら「最新にする」を押す。開くたびに半日ごと自動でも最新にする。体制のデータは、見せる人の端末でしか開けない形で置かれる。</p></div>' +
-    '<div class="sect"><h3>見せる人</h3>' + (presets.length ? S.members.filter(m => m.id !== S.admin).map(m => '<div class="ctl" style="align-items:center"><b style="min-width:5em">' + esc(m.name) + '</b><select data-mpreset="' + m.id + '"><option value="">見せない(勉強の場だけ)</option>' + presets.map(x => '<option value="' + x.id + '"' + (m.preset === x.id ? " selected" : "") + ">" + esc(x.name) + "</option>").join("") + "</select>" + (m.preset && !(m.pubs || []).length ? '<span class="note">まだ端末の鍵がない(次に開いたときに作られる)</span>' : "") + "</div>").join("") || '<p class="empty">まだほかのメンバーがいない。</p>' : '<p class="empty">先に下で見せ方のセットを作る。</p>') + "</div>" +
+    '<div class="sect"><h3>見せる人</h3>' + (presets.length ? S.members.filter(m => m.id !== S.admin).map(m => '<div class="ctl" style="align-items:center"><b style="min-width:5em">' + esc(m.name) + '</b><select data-mpreset="' + m.id + '"><option value="">見せない(勉強の場だけ)</option>' + presets.map(x => '<option value="' + x.id + '"' + (m.preset === x.id ? " selected" : "") + ">" + esc(x.name) + "</option>").join("") + "</select>" + grantState(m) + "</div>").join("") || '<p class="empty">まだほかのメンバーがいない。</p>' : '<p class="empty">先に下で見せ方のセットを作る。</p>') + "</div>" +
     '<div class="sect"><h3>見せ方のセット</h3><div class="tabs" style="position:static;border:0;margin:0;padding:0 0 .4rem">' + presets.map(x => '<button type="button" data-editp="' + x.id + '" aria-pressed="' + (x.id === editPreset) + '">' + esc(x.name) + "</button>").join("") + '<button type="button" id="newp">+ 新しいセット</button></div>' +
-      (p ? '<div class="chal-form"><input id="pname" value="' + esc(p.name) + '" aria-label="セットの名前"><button type="button" class="btn ghost sm" id="renamep">名前を変える</button></div><p class="note" style="margin:.3rem 0 .6rem">使っている人:' + (S.members.filter(m => m.preset === p.id).map(m => esc(m.name)).join("、") || "まだいない") + "。変えたら「最新にする」を押す。</p>" + presetPanel(p) : '<p class="empty">「+ 新しいセット」から作る。</p>') + "</div>" +
+      (p ? '<div class="chal-form"><input id="pname" value="' + esc(p.name) + '" aria-label="セットの名前"><button type="button" class="btn ghost sm" id="renamep">名前を変える</button></div><div class="ctl"><button type="button" class="btn sm" id="previewp">このセットの見え方を確かめる</button></div><p class="note" style="margin:.3rem 0 .6rem">使っている人:' + (S.members.filter(m => m.preset === p.id).map(m => esc(m.name)).join("、") || "まだいない") + "。変えたら「最新にする」を押す。</p>" + presetPanel(p) : '<p class="empty">「+ 新しいセット」から作る。</p>') + "</div>" +
     '<div class="sect"><h3>届いた感想・依頼<small>あなたにしか読めない</small></h3>' + (inbox.length ? inbox.map(x => '<div class="req"><div class="top"><span class="pill ' + (x.kind === "note" ? "done" : x.status) + '">' + (x.kind === "note" ? "感想" : STATUS[x.status]) + "</span><span>" + esc(ownerPlain[x.id] || "…") + '</span><span class="when">' + esc(nameBy(x.from)) + " ・ " + md(x.at) + "</span></div>" +
       (x.kind === "req" ? '<div class="ctl">' + Object.entries(STATUS).map(([s1, l]) => '<button type="button" class="btn ' + (x.status === s1 ? "" : "ghost ") + 'sm" data-fbst="' + x.id + '" data-v="' + s1 + '">' + l + '</button>').join("") + '</div><div class="ctl"><input data-replyin="' + x.id + '" placeholder="返事(その人にだけ届く)" aria-label="返事"><button type="button" class="btn sm" data-reply="' + x.id + '">返事を送る</button></div>' : "") + "</div>").join("") : '<p class="empty">まだ届いてない。</p>') + "</div>";
 }
@@ -875,12 +920,49 @@ function summaryTab(){
         (e.going || []).filter(x => !who[x]).map(x => '<span style="opacity:.6">' + esc(nameBy(x)) + (evNow(e) ? " まだ" : " 欠席") + "</span>").join("") + "</div></div>"; }).join("") : '<p class="empty">この期間の勉強会はない。</p>') + "</div>";
 }
 
+/* ═════ 意見箱(だれでも送れる。直すための情報を自動で付ける。「管理者だけ」は管理者にしか読めない形で) ═════ */
+const IDEA_KIND = { bug: "不具合", want: "ほしい機能", other: "その他" };
+const IDEA_ST = { new: "受付", doing: "対応中", done: "直した", no: "見送り" };
+const IDEA_HINT = { bug: "どの画面で、何をしたら、どうなったか。出た文言があればそのまま", want: "どんなことができたらうれしいか", other: "なんでも" };
+let ideaKind = "bug", ideaPlain = {};
+const devName = () => { const u = navigator.userAgent; return (/Android/.test(u) ? "Android" : /iPhone|iPad/.test(u) ? "iPhone" : /Windows/.test(u) ? "Windows" : /Mac/.test(u) ? "Mac" : "その他") + " ・ " + (/Chrome\//.test(u) ? "Chrome" : /Safari\//.test(u) ? "Safari" : /Firefox\//.test(u) ? "Firefox" : "ブラウザ") + (matchMedia("(display-mode: standalone)").matches ? " ・ ホーム画面から" : ""); };
+const ideaVisible = x => !x.private || x.by === me() || isAdmin();
+async function decryptIdeas(){
+  const k = await ensureKeys();
+  for (const x of S.ideas || []) { if (!x.private || !ideaVisible(x)) continue; const key = x.id + (x.reply && x.reply.ct ? "r" : ""); if (ideaPlain[key] != null) continue;
+    try { let sk;
+      if (isAdmin()) { const m = S.members.find(y => y.id === x.by), pub = m && (m.pubs || []).find(p => p.kid === x.kid); if (!pub || !S.ownerPub || S.ownerPub.kid !== k.kid || x.okid !== k.kid) throw 0; sk = await shared(pub.jwk); }
+      else { if (x.kid !== k.kid || !S.ownerPub || x.okid !== S.ownerPub.kid) throw 0; sk = await shared(S.ownerPub.jwk); }
+      ideaPlain[x.id] = await dec(sk, x); if (x.reply && x.reply.ct) ideaPlain[x.id + "r"] = await dec(sk, x.reply);
+    } catch (e) { ideaPlain[x.id] = "(この端末からは読めない)"; } }
+}
+function ideasTab(){
+  const L = (S.ideas || []).filter(ideaVisible), open = L.filter(x => x.status === "new" || x.status === "doing"), closed = L.filter(x => x.status === "done" || x.status === "no");
+  const sortOpen = (a, b) => (b.votes || []).length - (a.votes || []).length || b.at - a.at;
+  const card = x => { const txt = x.private ? (ideaPlain[x.id] || "…") : x.text, voted = (x.votes || []).includes(me()), rep = x.reply ? (x.private ? ideaPlain[x.id + "r"] || "…" : x.reply.text) : "";
+    return '<div class="req"><div class="top"><span class="pill ' + (x.status === "done" ? "done" : x.status === "doing" ? "doing" : "new") + '">' + IDEA_ST[x.status] + "</span><span><b>" + IDEA_KIND[x.kind] + "</b> " + esc(txt) + "</span></div>" +
+      '<div class="note">' + esc(nameBy(x.by)) + " ・ " + ago(x.at) + (x.private ? " ・ 🔒 管理者だけ" : "") + (isAdmin() ? " ・ " + esc(x.ver || "") + " ・ " + esc(x.dev || "") + (x.from ? " ・ 「" + esc(x.from) + "」から" : "") : "") + "</div>" +
+      (rep ? '<div class="reply">' + esc(nameBy(S.admin)) + "より:" + esc(rep) + "</div>" : "") +
+      '<div class="ctl">' + (!x.private ? '<button type="button" class="btn ' + (voted ? "" : "ghost ") + 'sm" data-ideavote="' + x.id + '" aria-pressed="' + voted + '"' + (x.by === me() ? " disabled" : "") + '>👍 同じ意見 ' + (x.votes || []).length + "</button>" : "") +
+        (isAdmin() ? Object.entries(IDEA_ST).map(([k, l]) => '<button type="button" class="btn ' + (x.status === k ? "" : "ghost ") + 'sm" data-ideast="' + x.id + '" data-v="' + k + '">' + l + "</button>").join("") : "") + "</div>" +
+      (isAdmin() ? '<div class="ctl"><input data-ideareplyin="' + x.id + '" placeholder="返事(' + (x.private ? "送った人にだけ届く" : "みんなに見える") + ')" aria-label="返事"><button type="button" class="btn sm" data-ideareply="' + x.id + '">返事を送る</button></div>' : "") + "</div>"; };
+  return '<div class="sect"><h3>意見箱<small>' + esc(nameBy(S.admin)) + 'が読んで直す</small></h3><p class="lead">不具合やほしい機能を送ってくれたら、それをもとに直す。送ると、アプリの版と端末の種類が自動で付く(直すときに使う)。</p>' +
+      '<div class="plans" role="group" aria-label="種類">' + Object.entries(IDEA_KIND).map(([k, l]) => '<button type="button" data-ideakind="' + k + '" aria-pressed="' + (ideaKind === k) + '">' + l + "</button>").join("") + "</div>" +
+      '<textarea id="ideatext" placeholder="' + esc(IDEA_HINT[ideaKind]) + '" aria-label="意見"></textarea>' +
+      '<label class="note" style="display:flex;gap:.4rem;align-items:center;margin-top:.4rem"><input type="checkbox" id="ideaprivate"> 🔒 管理者だけに送る(ほかの人には見えない)</label>' +
+      '<div style="margin-top:.5rem"><button type="button" class="btn sm" id="sendidea">送る</button></div></div>' +
+    '<div class="sect"><h3>届いている意見<small>' + open.length + '件</small></h3>' + (open.length ? open.sort(sortOpen).map(card).join("") : '<p class="empty">いまはない。</p>') + "</div>" +
+    (closed.length ? '<div class="sect"><h3>終わった意見<small>' + closed.length + "件</small></h3>" + closed.sort((a, b) => (b.doneAt || b.at) - (a.doneAt || a.at)).slice(0, 30).map(card).join("") + "</div>" : "");
+}
+
 /* ═════ 全体 ═════ */
 function tabsList(){ const t = [["guide", "説明書"], ["room", "作業部屋"], ["battle", "勝負"], ["board", "質問板"], ["probs", "問題"], ["make", "出す"]];
+  t.push(["ideas", "意見箱"]);
   if (!isAdmin() && (S.grants || {})[me()]) t.push(["sys", nameBy(S.admin) + "の体制"]); if (isAdmin()) { t.push(["sum", "まとめ"]); t.push(["admin", "管理"]); } return t; }
 function badge(k){
   if (k === "room") { if ((S.events || []).some(evNow)) return '<span class="n">勉強会中</span>'; if ((S.events || []).some(e => evSoon(e) && (e.going || []).includes(me()))) return '<span class="n">もうすぐ</span>'; const n = Object.keys(liveRoom()).length; return n ? '<span class="n">●' + n + "</span>" : ""; }
   if (k === "battle") { if (S.battles.some(myTurnRv)) return '<span class="n">君の番</span>'; if (S.battles.some(x => x.state === "open" && !x.members.includes(me()))) return '<span class="n">募集</span>'; return ""; }
+  if (k === "ideas") { if (isAdmin()) { const n = (S.ideas || []).filter(x => x.status === "new").length; return n ? '<span class="n">' + n + "</span>" : ""; } const r = (S.ideas || []).filter(x => x.by === me() && x.reply && !(lsGet("study-ideaseen", [])).includes(x.id + ":" + (x.reply.at || 0))).length; return r ? '<span class="n">返事</span>' : ""; }
   if (k === "board") { const n = S.qs.filter(q => !q.solved && !q.ans.length).length; return n ? '<span class="n">' + n + "</span>" : ""; }
   return "";
 }
@@ -891,18 +973,20 @@ function render(){
   if (!me() || !S.members.some(m => m.id === me())) { app.innerHTML = joinScreen(); const f = $("jname"); if (f) f.focus(); return; }
   setTimeout(showActiveTabs, 0);
   const T = tabsList(); if (!T.some(([k]) => k === tab)) tab = "guide";
-  const P = { guide, room, battle: battles, board, probs: problems, make, admin: () => admin() + adminSys() + adminDevice(), sys: sysArea, sum: summaryTab };
-  app.innerHTML = '<div class="mast"><h1>' + (tab === "sys" ? esc(nameBy(S.admin)) + "の体制" : "勉強の場") + "</h1><small>" + esc(nameBy(me())) + "</small></div>" +
+  const P = { guide, room, battle: battles, board, probs: problems, make, admin: () => admin() + adminSys() + adminDevice(), sys: sysArea, sum: summaryTab, ideas: ideasTab };
+  app.innerHTML = '<div class="mast"><h1>' + (tab === "sys" || (tab === "admin" && previewPreset) ? esc(nameBy(S.admin)) + "の体制" : "勉強の場") + "</h1><small>" + esc(nameBy(me())) + "</small></div>" +
     '<nav class="tabs" aria-label="勉強の場">' + T.map(([k, l]) => '<button type="button" data-tab="' + k + '" aria-pressed="' + (tab === k) + '">' + l + badge(k) + "</button>").join("") + "</nav>" + P[tab]();
 }
 async function afterTab(){
+  if (tab === "ideas") { await decryptIdeas(); lsSet("study-ideaseen", (S.ideas || []).filter(x => x.by === me() && x.reply).map(x => x.id + ":" + (x.reply.at || 0))); keepY(); }
   if (tab === "sys") { if (!sysData && !sysLoading) { render(); await loadSysData(); } await decryptMine(); keepY(); }
   if (tab === "admin" && isAdmin()) { if (ownerConf && !sysSource) { try { sysSource = await buildSource(); sysSourceErr = ""; } catch (e) { sysSourceErr = e.message; } } await decryptInbox(); keepY(); }
 }
 function showActiveTabs(){ document.querySelectorAll("nav.tabs").forEach(n => { const b = n.querySelector('[aria-pressed="true"]'); if (b) n.scrollLeft = Math.max(0, b.offsetLeft - n.clientWidth / 2 + b.offsetWidth / 2); }); }
 const keepY = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
 async function refresh(){ if (!conf || busy || playing) return; const a = document.activeElement; if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA") && a.value) return;
-  try { await load(); loadErr = ""; if (tab === "sys") await decryptMine(); if (tab === "admin") await decryptInbox(); keepY(); } catch (e) { loadErr = e.message; if (!loaded) render(); } }
+  try { await load(); loadErr = ""; if (tab === "ideas") await decryptIdeas(); if (isAdmin() && ownerConf && (S.presets || []).length && needsExport() && !exporting) exportSys().then(() => keepY());
+    const g = (S.grants || {})[me()]; if (sysData && g && g.at !== sysGrantAt) { sysData = null; if (tab === "sys") { await loadSysData(); } } if (tab === "sys") await decryptMine(); if (tab === "admin") await decryptInbox(); keepY(); } catch (e) { loadErr = e.message; if (!loaded) render(); } }
 
 /* ═════ 操作 ═════ */
 document.addEventListener("click", async e => {
@@ -919,8 +1003,22 @@ document.addEventListener("click", async e => {
     if (okk) { conf.me = id; delete conf.from; lsSet(CONF_KEY, conf); gateErr = ""; tab = "guide"; snd("open"); await publishMyKey(); } render(); return; }
   if (t.id === "loginbtn") { const m = S.members.find(x => x.id === $("lname").value); if (!m) return;
     if ((await hash($("lpass").value, m.salt)) === m.ph) { conf.me = m.id; lsSet(CONF_KEY, conf); gateErr = ""; snd("open"); await publishMyKey(); } else { gateErr = "合言葉が違う"; snd("error"); } render(); return; }
-  if (d.tab) { tab = d.tab; lsSet("study-tab", tab); viewing = null; playing = null; render(); window.scrollTo(0, 0); snd("tab"); afterTab(); return; }
+  if (d.tab) { if (d.tab === "ideas" && tab !== "ideas") lsSet("study-prevtab", tab); previewPreset = null; tab = d.tab; lsSet("study-tab", tab); viewing = null; playing = null; render(); window.scrollTo(0, 0); snd("tab"); afterTab(); return; }
   if (t.id === "copylink") { const inp = $("invlink"); try { await navigator.clipboard.writeText(inp.value); toast("招待リンクをコピーした"); } catch (x) { inp.select(); } snd("save"); return; }
+  // 意見箱
+  if (d.ideakind) { ideaKind = d.ideakind; const ta = $("ideatext"), v = ta ? ta.value : ""; keepY(); const t2 = $("ideatext"); if (t2) t2.value = v; return; }
+  if (t.id === "sendidea") { const ta = $("ideatext"), v = ta.value.trim(), priv = $("ideaprivate").checked; if (!v) { ta.focus(); return; }
+    const id = "i" + Date.now().toString(36), base = { id, by: me(), kind: ideaKind, at: Date.now(), status: "new", votes: [], ver: APP_VERSION, dev: devName(), from: (tabsList().find(([k]) => k === (lsGet("study-prevtab", "guide"))) || [0, ""])[1] };
+    let item;
+    if (priv) { if (!S.ownerPub) { toast("まだ「管理者だけ」は送れない(管理者がアプリを開くと送れるようになる)"); return; } const k = await ensureKeys(), box = await enc(await shared(S.ownerPub.jwk), v); item = Object.assign(base, { private: true, kid: k.kid, okid: S.ownerPub.kid }, box); }
+    else item = Object.assign(base, { text: v });
+    if (await mutate(D => { D.ideas = D.ideas || []; D.ideas.push(item); }, "意見箱")) { if (priv) ideaPlain[id] = v; snd("save"); toast("送った。ありがとう"); } render(); return; }
+  if (d.ideavote) { const id = d.ideavote; let on = false; if (await mutate(D => { const x = (D.ideas || []).find(y => y.id === id); if (!x || x.by === me()) return false; x.votes = x.votes || []; const i = x.votes.indexOf(me()); if (i >= 0) x.votes.splice(i, 1); else { x.votes.push(me()); on = true; } }, "同じ意見")) snd(on ? "toggleOn" : "toggleOff"); keepY(); return; }
+  if (d.ideast) { const id = d.ideast, v = d.v; if (await mutate(D => { if (!isAdmin()) return false; const x = (D.ideas || []).find(y => y.id === id); if (!x) return false; x.status = v; if (v === "done" || v === "no") x.doneAt = Date.now(); }, "意見の進み")) snd(v === "done" ? "done" : "toggleOn"); keepY(); return; }
+  if (d.ideareply) { const id = d.ideareply, inp = document.querySelector('[data-ideareplyin="' + id + '"]'), v = inp && inp.value.trim(); if (!v) return; const x = (S.ideas || []).find(y => y.id === id); if (!x) return;
+    let reply = { text: v, at: Date.now() };
+    if (x.private) { const m = S.members.find(y => y.id === x.by), pub = m && (m.pubs || []).find(p1 => p1.kid === x.kid); if (!pub) { toast("この人の端末の鍵がない"); return; } reply = Object.assign({ at: Date.now() }, await enc(await shared(pub.jwk), v)); ideaPlain[id + "r"] = v; }
+    if (await mutate(D => { const y = (D.ideas || []).find(z => z.id === id); if (!y) return false; y.reply = reply; if (y.status === "new") y.status = "doing"; }, "意見への返事")) { snd("save"); toast("返事を送った"); } keepY(); return; }
   // 勉強会
   if (t.id === "evopen") { const title = $("evtitle").value.trim() || "勉強会", sub = $("evsub").value, dv = $("evdate").value, tv = $("evtime").value, dur = +$("evdur").value;
     const start = new Date(dv + "T" + (tv || "20:00")).getTime(); if (!dv || isNaN(start)) { toast("日にちと時刻を入れて"); return; } if (start + dur * 60000 < Date.now()) { toast("もう終わっている時間になってる"); return; }
@@ -984,6 +1082,7 @@ document.addEventListener("click", async e => {
   if (d.pin) { const i = SL.pins.indexOf(d.pin); if (i >= 0) SL.pins.splice(i, 1); else SL.pins.push(d.pin); saveSL(); snd(i >= 0 ? "toggleOff" : "toggleOn"); keepY(); return; }
   if (d.ins) { const ta = $("note"); if (!ta) return; const st = ta.selectionStart ?? ta.value.length, en = ta.selectionEnd ?? st, pre = ta.value.slice(0, st), add = (pre && !/\n$/.test(pre) && !t.classList.contains("p") ? "\n" : "") + d.ins;
     ta.value = pre + add + ta.value.slice(en); const pos = (pre + add).length; ta.focus(); ta.setSelectionRange(pos, pos); SL.draft = ta.value; saveSL(); $("count").textContent = ta.value.length + " 文字"; snd("tab"); return; }
+  if (previewPreset && (t.id === "sendnote" || t.id === "sendreq" || d.pin || d.quiz || d.bet || t.id === "sendchal")) { toast("確かめ中なので、何も送られない"); return; }
   if (t.id === "sendnote" || t.id === "sendreq") { const kind = t.id === "sendnote" ? "note" : "req", ta = $(kind === "note" ? "note" : "reqtext"), v = ta.value.trim(); if (!v) { ta.focus(); return; }
     if (!S.ownerPub) { toast("まだ送れない(" + nameBy(S.admin) + "が体制を最新にすると送れる)"); return; }
     const k = await ensureKeys(), sk = await shared(S.ownerPub.jwk), box = await enc(sk, v), id = "f" + Date.now().toString(36), okid = S.ownerPub.kid;
@@ -994,14 +1093,19 @@ document.addEventListener("click", async e => {
     SL.chals.push({ id: "c" + Date.now(), target: tid, n, start: T.v, dueAt: Date.now() + days * 864e5, text: (days === 7 ? "1週間" : days === 14 ? "2週間" : days + "日") + "で" + T.name + "を+" + n + "以上" }); saveSL(); snd("save"); keepY(); return; }
   // 体制(管理者)
   if (t.id === "oconnect") { const repo = $("orepo").value.trim(), token = $("otoken").value.trim() || (ownerConf && ownerConf.token); if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !token) { toast("リポジトリと鍵を入れて"); return; }
-    ownerConf = { repo, token, branch: "main" }; lsSet(OWNER_CONF_KEY, ownerConf); try { sysSource = await buildSource(); sysSourceErr = ""; toast("体制のデータを読んだ"); } catch (e) { sysSourceErr = e.message; } snd("save"); keepY(); return; }
+    ownerConf = { repo, token, branch: "main" }; lsSet(OWNER_CONF_KEY, ownerConf); try { sysSource = await buildSource(); sysSourceErr = ""; toast("体制のデータを読んだ"); scheduleExport(); } catch (e) { sysSourceErr = e.message; } snd("save"); keepY(); return; }
   if (t.id === "sysread") { try { sysSource = await buildSource(); sysSourceErr = ""; toast("読み直した"); } catch (e) { sysSourceErr = e.message; } keepY(); return; }
+  if (t.id === "previewp") { if (!sysSource) { if (!ownerConf) { toast("先に体制のデータにつないで"); return; } try { sysSource = await buildSource(); sysSourceErr = ""; } catch (e) { sysSourceErr = e.message; toast(e.message); keepY(); return; } }
+    previewPreset = editPreset; sysTab = "intro"; sysPage = "home"; render(); window.scrollTo(0, 0); snd("open"); return; }
+  if (t.id === "closepreview") { previewPreset = null; render(); window.scrollTo(0, 0); snd("tab"); return; }
   if (t.id === "sysexport") { keepY(); const okk = await exportSys(); if (okk) snd("done"); keepY(); return; }
   if (d.editp) { editPreset = d.editp; peek.clear(); keepY(); return; }
   if (t.id === "newp") { const id = "p" + Date.now().toString(36); if (await mutate(D => { D.presets = D.presets || []; D.presets.push({ id, name: "新しいセット", allow: {} }); }, "見せ方のセット")) { editPreset = id; snd("save"); } keepY(); return; }
   if (t.id === "renamep") { const v = $("pname").value.trim(), id = editPreset; if (v && await mutate(D => { const p1 = (D.presets || []).find(x => x.id === id); if (!p1) return false; p1.name = v; }, "セットの名前")) snd("save"); keepY(); return; }
-  if (d.allow) { const id = d.allow, pid = editPreset; let on = false; if (await mutate(D => { const p1 = (D.presets || []).find(x => x.id === pid); if (!p1) return false; p1.allow = p1.allow || {}; p1.allow[id] = !p1.allow[id]; on = p1.allow[id]; if (!on && !id.includes(":detail")) delete p1.allow[id + ":detail"]; }, "見せ方")) snd(on ? "toggleOn" : "toggleOff"); keepY(); return; }
-  if (d.allowall) { const pid = editPreset, all = d.allowall === "1", ids = sysSource ? ALLOW_IDS(sysSource) : []; if (await mutate(D => { const p1 = (D.presets || []).find(x => x.id === pid); if (!p1) return false; p1.allow = all ? Object.fromEntries(ids.map(i => [i, true])) : {}; }, "見せ方")) snd(all ? "toggleOn" : "toggleOff"); keepY(); return; }
+  if (d.allow) { const id = d.allow, pid = editPreset; let on = false; if (await mutate(D => { const p1 = (D.presets || []).find(x => x.id === pid); if (!p1) return false; p1.allow = p1.allow || {}; p1.allow[id] = !p1.allow[id]; on = p1.allow[id]; if (!on && !id.includes(":detail")) delete p1.allow[id + ":detail"]; }, "見せ方")) { snd(on ? "toggleOn" : "toggleOff"); scheduleExport(); } keepY(); return; }
+  if (d.allowall) { const pid = editPreset, all = d.allowall === "1";
+    if (all && !sysSource) { if (!ownerConf) { toast("先に上の「体制を見せる」で体制のデータにつないで"); return; } try { sysSource = await buildSource(); sysSourceErr = ""; } catch (e) { sysSourceErr = e.message; toast(e.message); keepY(); return; } }
+    const ids = sysSource ? ALLOW_IDS(sysSource) : []; if (await mutate(D => { const p1 = (D.presets || []).find(x => x.id === pid); if (!p1) return false; p1.allow = all ? Object.fromEntries(ids.map(i => [i, true])) : {}; }, "見せ方")) { snd(all ? "toggleOn" : "toggleOff"); scheduleExport(); } keepY(); return; }
   if (d.peek) { peek.has(d.peek) ? peek.delete(d.peek) : peek.add(d.peek); snd("tab"); keepY(); return; }
   if (d.peekall) { peek.clear(); if (d.peekall === "1" && sysSource) ALLOW_IDS(sysSource).forEach(i => peek.add(i)); snd("tab"); keepY(); return; }
   if (d.fbst) { const id = d.fbst, v = d.v; if (await mutate(D => { const x = (D.fb || []).find(y => y.id === id); if (!x) return false; x.status = v; }, "依頼の進み")) snd("toggleOn"); keepY(); return; }
@@ -1011,7 +1115,7 @@ document.addEventListener("click", async e => {
   if (d.delm) { const m = S.members.find(x => x.id === d.delm); if (m && confirm(m.name + "をメンバーから外す?")) { await mutate(D => { if (!isAdmin()) return false; D.members = D.members.filter(x => x.id !== m.id); }, "メンバーを外す"); snd("remove"); keepY(); } return; }
 });
 document.addEventListener("change", async e => {
-  const t = e.target; if (t.dataset && t.dataset.mpreset) { const mid = t.dataset.mpreset, v = t.value || null; if (await mutate(D => { const m = D.members.find(x => x.id === mid); if (!m) return false; m.preset = v; }, "見せる人")) { snd(v ? "toggleOn" : "toggleOff"); toast("変えた。「最新にする」を押すと反映される"); } keepY(); }
+  const t = e.target; if (t.dataset && t.dataset.mpreset) { const mid = t.dataset.mpreset, v = t.value || null; if (await mutate(D => { const m = D.members.find(x => x.id === mid); if (!m) return false; m.preset = v; }, "見せる人")) { snd(v ? "toggleOn" : "toggleOff"); toast(ownerConf ? "変えた。少しあとに自動で届ける" : "変えた。体制のデータにつなぐと届けられる"); scheduleExport(); } keepY(); }
 });
 document.addEventListener("input", e => { if (e.target.id === "note") { SL.draft = e.target.value; saveSL(); const c = $("count"); if (c) c.textContent = e.target.value.length + " 文字"; } });
 document.addEventListener("keydown", e => {
@@ -1033,7 +1137,8 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
     try { history.replaceState(null, "", location.pathname); } catch (e) {} }
   render();
   if (conf) { try { await load(); loadErr = ""; } catch (e) { loadErr = e.message; } render();
-    if (loaded && me() && S.members.some(m => m.id === me())) { await publishMyKey(); if (isAdmin() && ownerConf && Date.now() - (S.sysAt || 0) > 12 * 3600e3 && (S.presets || []).length) await exportSys(); render(); afterTab(); } }
+    if (loaded && me() && S.members.some(m => m.id === me())) { await publishMyKey();
+      if (isAdmin() && !S.ownerPub) { const k0 = await ensureKeys(); await mutate(D => { if (D.ownerPub) return false; D.ownerPub = { kid: k0.kid, jwk: k0.pub }; }, "管理の鍵"); } if (isAdmin() && ownerConf && (S.presets || []).length && (Date.now() - (S.sysAt || 0) > 12 * 3600e3 || needsExport())) await exportSys(); render(); afterTab(); } }
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("./sw.js").catch(() => {});
 })();
 
