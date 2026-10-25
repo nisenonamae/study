@@ -1,5 +1,5 @@
 // 勉強の場のサービスワーカー:つながるときは必ず最新を取りに行き、つながらないときだけ手元の保存を使う
-const CACHE = "study-s10";
+const CACHE = "study-s11";
 self.addEventListener("install", e => { self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil((async () => { const scope = self.registration.scope;
   for (const k of await caches.keys()) { if (k === CACHE) continue; const c = await caches.open(k), reqs = await c.keys(); if (reqs.length && reqs.every(r => r.url.startsWith(scope))) await caches.delete(k); }
