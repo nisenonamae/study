@@ -337,7 +337,7 @@ textarea{ width:100%; min-height:5em; padding:.6rem .7rem; border:1px solid var(
 /* ═══════════ 勉強の場(本番) ═══════════
    データは非公開リポジトリの study.json に保存。鍵は招待リンクの # の後ろに入っていて、ページ本体には書かない。
    リアルタイムではない:45秒ごとに読み直す。書き込むときは、最新を読んでから書く(ぶつかったら読み直して書き直す) */
-const APP_VERSION = "2026-10-25 s6";
+const APP_VERSION = "2026-10-25 s7";
 const SUBJECTS = ["数学", "英語", "国語", "理科", "社会", "その他"];
 const CONF_KEY = "study-conf";
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
@@ -402,7 +402,8 @@ const isAdmin = () => !!me() && S.admin === me();
 const isBanned = id => !!(S.members.find(m => m.id === id) || {}).banned;   // 追放された人が書いたものは見せない
 const ok_ = x => !isBanned(x);
 const myKid = () => (lsGet("study-keys", null) || {}).kid;
-const deviceBanned = () => { const k = myKid(); return !!k && (S.bannedKids || []).includes(k); };
+const adminKids = () => { const a = S.members.find(m => m.id === S.admin); return ((a && a.pubs) || []).map(p => p.kid).concat(S.ownerPub ? [S.ownerPub.kid] : []); };
+const deviceBanned = () => { const k = myKid(); return !!k && !isAdmin() && !adminKids().includes(k) && (S.bannedKids || []).includes(k); };
 const liveMembers = () => S.members.filter(m => !m.banned);
 const snd = n => { if (window.SE) SE.play(n); };
 function toast(t){ const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => { el.hidden = true; }, 3200); }
@@ -1011,7 +1012,7 @@ document.addEventListener("click", async e => {
     if (!n) { gateErr = "名前を入れてね"; snd("error"); render(); return; } if (a.length < 4) { gateErr = "合言葉は4文字以上にしてね"; snd("error"); render(); return; } if (a !== b) { gateErr = "2つの合言葉が違う"; snd("error"); render(); return; }
     const id = "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), salt = Math.random().toString(36).slice(2, 10), ph = await hash(a, salt), by = conf.from || null;
     const kidNow = (await ensureKeys()).kid;
-    const okk = await mutate(D => { if ((D.bannedKids || []).includes(kidNow)) { gateErr = "この端末からは入れない(追放されている)"; return false; } if (D.members.some(m => m.name === n)) { gateErr = "その名前はもう使われてる"; return false; } D.members.push({ id, name: n, salt, ph, by, at: Date.now() }); if (!D.admin) D.admin = id; }, "メンバー:" + n);
+    const okk = await mutate(D => { if ((D.bannedKids || []).includes(kidNow) && !(((D.members.find(x => x.id === D.admin) || {}).pubs || []).some(p1 => p1.kid === kidNow))) { gateErr = "この端末からは入れない(追放されている)"; return false; } if (D.members.some(m => m.name === n)) { gateErr = "その名前はもう使われてる"; return false; } D.members.push({ id, name: n, salt, ph, by, at: Date.now() }); if (!D.admin) D.admin = id; }, "メンバー:" + n);
     if (okk) { conf.me = id; delete conf.from; lsSet(CONF_KEY, conf); gateErr = ""; tab = "guide"; snd("open"); await publishMyKey(); } render(); return; }
   if (t.id === "loginbtn") { const m = S.members.find(x => x.id === $("lname").value); if (!m || m.banned) return;
     if ((await hash($("lpass").value, m.salt)) === m.ph) { conf.me = m.id; lsSet(CONF_KEY, conf); gateErr = ""; snd("open"); await publishMyKey(); } else { gateErr = "合言葉が違う"; snd("error"); } render(); return; }
@@ -1128,7 +1129,8 @@ document.addEventListener("click", async e => {
   if (d.ban) { const m = S.members.find(x => x.id === d.ban); if (!m || m.id === S.admin) return;
     if (!confirm(m.name + "を追放する?\nその人と端末は入れなくなり、書いたものは見えなくなる。あとで解除できる。")) return;
     if (await mutate(D => { if (!isAdmin()) return false; const mm = D.members.find(x => x.id === m.id); if (!mm) return false; mm.banned = true; mm.bannedAt = Date.now(); mm.preset = null;
-      D.bannedKids = Array.from(new Set((D.bannedKids || []).concat((mm.pubs || []).map(p1 => p1.kid)))); if (D.room && D.room.on) delete D.room.on[mm.id]; if (D.grants) delete D.grants[mm.id]; }, "追放:" + m.name)) { snd("remove"); toast(m.name + "を追放した"); } keepY(); return; }
+      const adm = D.members.find(x => x.id === D.admin), keep = ((adm && adm.pubs) || []).map(p1 => p1.kid).concat(D.ownerPub ? [D.ownerPub.kid] : []);
+      D.bannedKids = Array.from(new Set((D.bannedKids || []).concat((mm.pubs || []).map(p1 => p1.kid).filter(k => !keep.includes(k))))); if (D.room && D.room.on) delete D.room.on[mm.id]; if (D.grants) delete D.grants[mm.id]; }, "追放:" + m.name)) { snd("remove"); toast(m.name + "を追放した"); } keepY(); return; }
   if (d.unban) { const m = S.members.find(x => x.id === d.unban); if (!m) return; if (!confirm(m.name + "の追放を解除する?")) return;
     if (await mutate(D => { if (!isAdmin()) return false; const mm = D.members.find(x => x.id === m.id); if (!mm) return false; mm.banned = false; delete mm.bannedAt; const ks = (mm.pubs || []).map(p1 => p1.kid); D.bannedKids = (D.bannedKids || []).filter(k => !ks.includes(k)); }, "追放の解除:" + m.name)) { snd("toggleOn"); toast(m.name + "の追放を解除した"); } keepY(); return; }
   // 管理
