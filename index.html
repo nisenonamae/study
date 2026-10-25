@@ -337,7 +337,7 @@ textarea{ width:100%; min-height:5em; padding:.6rem .7rem; border:1px solid var(
 /* ═══════════ 勉強の場(本番) ═══════════
    データは非公開リポジトリの study.json に保存。鍵は招待リンクの # の後ろに入っていて、ページ本体には書かない。
    リアルタイムではない:45秒ごとに読み直す。書き込むときは、最新を読んでから書く(ぶつかったら読み直して書き直す) */
-const APP_VERSION = "2026-10-25 s10";
+const APP_VERSION = "2026-10-25 s11";
 const SUBJECTS = ["数学", "英語", "国語", "理科", "社会", "その他"];
 const CONF_KEY = "study-conf";
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
@@ -367,14 +367,20 @@ async function load(){
   }
 }
 async function loadFail(r){
-  if (r.status === 404) { S = blankData(); sha = null; loaded = true; return; }
+  if (r.status === 404) {
+    const H = { Authorization: "Bearer " + conf.token, Accept: "application/vnd.github+json" }, br = conf.branch || "main";
+    let rr; try { rr = await fetch("https://api.github.com/repos/" + conf.repo + "?t=" + Date.now(), { headers: H, cache: "no-store" }); } catch (x) { throw new Error("ネットにつながっていない"); }
+    if (!rr.ok) throw new Error("リポジトリ「" + conf.repo + "」が見つからない、またはこの鍵では見られない(" + rr.status + ")。名前の打ち間違いか、鍵を作るときにこのリポジトリを選んでいないかを確かめて。招待リンクから開き直すのがいちばん確実");
+    const bb = await fetch("https://api.github.com/repos/" + conf.repo + "/branches/" + encodeURIComponent(br) + "?t=" + Date.now(), { headers: H, cache: "no-store" });
+    if (!bb.ok) throw new Error("ブランチ「" + br + "」がない。ふつうは main(空のリポジトリなら、README を作るとできる)");
+    S = blankData(); sha = null; loaded = true; return; }
   if (r.status === 401) throw new Error("鍵が使えない(招待リンクが古いか、鍵の期限が切れている)");
   if (r.status === 403) throw new Error("鍵に読む許可がない、またはGitHubの回数制限(403)。少し待ってからもう一度");
   throw new Error("読み込めない(" + r.status + ")");
 }
 /* 最新を読んで、変更を当てて、書く。ぶつかったらやり直す */
 async function mutate(fn, msg){
-  if (busy) return false; busy = true;
+  if (busy) { lastErr = "前の書き込みがまだ終わっていない。少し待ってもう一度"; return false; } busy = true; lastErr = "";
   try {
     for (let i = 0; i < 7; i++) {
       await load(); const res = fn(S); if (res === false) return false;
@@ -386,9 +392,10 @@ async function mutate(fn, msg){
       await new Promise(z => setTimeout(z, 600 + i * 500 + Math.random() * 500));
     }
     throw new Error("ほかの人と同時に書き込みがぶつかった。もう一度押して");
-  } catch (e) { toast(e.message); return false; }
+  } catch (e) { lastErr = e.message; toast(e.message); return false; }
   finally { busy = false; }
 }
+let lastErr = "";
 
 /* ───── ふつうの道具 ───── */
 const $ = id => document.getElementById(id);
@@ -433,7 +440,9 @@ function joinScreen(){
   const join = '<div class="sect" style="text-align:left"><h3>' + (S.admin ? "はじめて入る" : "最初のメンバーとして入る(管理者になる)") + '</h3>' + (has ? '<p class="note" style="margin:0 0 .4rem">はじめての人だけ。前に入ったことがある人がここで入ると、別のアカウントが増えてしまう。</p>' : "") +
     '<input id="jname" placeholder="ここで使う名前" aria-label="名前"><input id="p1" type="password" placeholder="合言葉(自分だけのもの)" aria-label="合言葉"><input id="p2" type="password" placeholder="合言葉をもう一回" aria-label="合言葉をもう一回">' +
     '<div style="margin-top:.5rem"><button type="button" class="btn" id="joinbtn">入る</button></div></div>';
-  return '<div class="gate"><h1>' + (S.admin ? "勉強の場" : "勉強の場をはじめる") + '</h1><p>勉強の質問をしたり、問題を出し合ったり、一緒に勉強したりする場所。</p><div class="err" role="alert">' + esc(gateErr) + "</div>" + (has ? login + join : join) + "</div>";
+  const where = '<p class="note" style="margin-top:1rem">つないでいる場所:' + esc(conf.repo) + "(" + esc(conf.branch || "main") + ') ・ 版 ' + APP_VERSION + ' <button type="button" class="linkx" id="logout">設定をやり直す</button></p>';
+  const empty = !has ? '<div class="lock" style="border-left-color:var(--warn)"><span class="ic" aria-hidden="true">⚠️</span><span>ここにはまだ誰もいない。<b>ほかの端末ですでに使っているのにこの画面が出たら、つなぐ場所か鍵が違う。</b>この画面では入らずに、使っている端末の説明書にある招待リンクから開き直して。</span></div>' : "";
+  return '<div class="gate"><h1>' + (S.admin ? "勉強の場" : "勉強の場をはじめる") + '</h1><p>勉強の質問をしたり、問題を出し合ったり、一緒に勉強したりする場所。</p><div class="err" role="alert">' + esc(gateErr) + "</div>" + empty + (has ? login + join : join) + where + "</div>";
 }
 
 /* ═════ 説明書 ═════ */
@@ -1031,13 +1040,13 @@ document.addEventListener("click", async e => {
     if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !token) { gateErr = "リポジトリ(ユーザー名/名前)と鍵を入れて"; render(); return; }
     conf = { repo, token, branch, me: null }; try { await load(); } catch (x) { conf = null; gateErr = x.message; render(); return; } lsSet(CONF_KEY, conf); render(); return; }
   if (t.id === "retry") { loadErr = ""; render(); try { await load(); } catch (x) { loadErr = x.message; } render(); return; }
-  if (t.id === "logout") { if (confirm("この端末から出る?(データは消えない。また招待リンクか合言葉で入れる)")) { localStorage.removeItem(CONF_KEY); conf = null; loaded = false; render(); } return; }
+  if (t.id === "logout") { if (confirm("この端末のつなぎ先を消して、最初の設定に戻る?(データは消えない。また招待リンクか合言葉で入れる)")) { localStorage.removeItem(CONF_KEY); conf = null; loaded = false; gateErr = ""; render(); } return; }
   if (t.id === "joinbtn") { const n = $("jname").value.trim(), a = $("p1").value, b = $("p2").value;
     if (!n) { gateErr = "名前を入れてね"; snd("error"); render(); return; } if (a.length < 4) { gateErr = "合言葉は4文字以上にしてね"; snd("error"); render(); return; } if (a !== b) { gateErr = "2つの合言葉が違う"; snd("error"); render(); return; }
     const id = "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), salt = Math.random().toString(36).slice(2, 10), ph = await hash(a, salt), by = conf.from || null;
     const kidNow = (await ensureKeys()).kid;
     const okk = await mutate(D => { if ((D.bannedKids || []).includes(kidNow) && !(((D.members.find(x => x.id === D.admin) || {}).pubs || []).some(p1 => p1.kid === kidNow))) { gateErr = "この端末からは入れない(追放されている)"; return false; } if (D.members.some(m => m.name === n)) { gateErr = "その名前はもう使われてる"; return false; } D.members.push({ id, name: n, salt, ph, by, at: Date.now() }); if (!D.admin) D.admin = id; }, "メンバー:" + n);
-    if (okk) { conf.me = id; delete conf.from; lsSet(CONF_KEY, conf); rememberPass(id, a); gateErr = ""; tab = "guide"; snd("open"); await publishMyKey(); } render(); return; }
+    if (okk) { conf.me = id; delete conf.from; lsSet(CONF_KEY, conf); rememberPass(id, a); gateErr = ""; tab = "guide"; snd("open"); await publishMyKey(); } else if (!gateErr) { gateErr = "入れなかった:" + (lastErr || "理由が分からない。もう一度押して"); snd("error"); } render(); return; }
   if (t.id === "loginbtn") { const m = S.members.find(x => x.id === $("lname").value); if (!m || m.banned) return;
     if ((await hash($("lpass").value, m.salt)) === m.ph) { conf.me = m.id; lsSet(CONF_KEY, conf); rememberPass(m.id, $("lpass").value); gateErr = ""; snd("open"); await publishMyKey(); } else { gateErr = "合言葉が違う"; snd("error"); } render(); return; }
   if (d.tab) { if (d.tab === "ideas" && tab !== "ideas") lsSet("study-prevtab", tab); previewPreset = null; tab = d.tab; lsSet("study-tab", tab); viewing = null; playing = null; render(); window.scrollTo(0, 0); snd("tab"); afterTab(); return; }
