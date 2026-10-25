@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F3EC">
+<title>勉強の場</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F3EC; --sheet:#FFFFFF; --head:#FAF8F3; --ink:#26221E; --sub:#6E665C; --rule:#DCD5C7;
+  --shu:#B5432F; --shu-soft:#F5E1DC; --ok:#3D7A55; --warn:#9A6A12; --bar:#26221E; --bar-ink:#F6F3EC;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#1A1815; --sheet:#232019; --head:#2A261F; --ink:#EDE7DB; --sub:#A79E90; --rule:#3B362D;
+    --shu:#E07160; --shu-soft:#3A2622; --ok:#7FBF96; --warn:#D9A84A; --bar:#0F0E0C; --bar-ink:#EDE7DB; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#1A1815; --sheet:#232019; --head:#2A261F; --ink:#EDE7DB; --sub:#A79E90; --rule:#3B362D;
+  --shu:#E07160; --shu-soft:#3A2622; --ok:#7FBF96; --warn:#D9A84A; --bar:#0F0E0C; --bar-ink:#EDE7DB; color-scheme: dark;
+}
+:root{ box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+*,*::before,*::after{ box-sizing:inherit; }
+html{ scroll-padding-top:env(safe-area-inset-top,0px); }
+body{ margin:0; background:var(--paper); color:var(--ink); font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif; font-size:15px; line-height:1.7; }
+body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); z-index:10; background:var(--bar); }
+h1,h2,h3{ margin:0; line-height:1.4; }
+button,input,textarea{ font:inherit; color:inherit; }
+button{ cursor:pointer; }
+:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+.num{ font-variant-numeric:tabular-nums; }
+
+.pbar{ position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bar); color:var(--bar-ink); display:flex; align-items:center; gap:.5rem; padding:.5rem .9rem; font-size:.8rem; flex-wrap:wrap; }
+.pbar .seg{ display:flex; border:1px solid rgba(255,255,255,.35); border-radius:999px; overflow:hidden; }
+.pbar .seg button{ background:transparent; border:0; color:var(--bar-ink); padding:.28rem .8rem; font-size:.8rem; }
+.pbar .seg button[aria-pressed="true"]{ background:var(--bar-ink); color:var(--bar); font-weight:700; }
+.pbar .tag{ opacity:.75; margin-right:auto; }
+.pbar .reset{ background:transparent; border:0; color:var(--bar-ink); opacity:.7; text-decoration:underline; font-size:.76rem; }
+
+main{ max-width:640px; margin:0 auto; padding:1rem .9rem 4rem; }
+.mast{ display:flex; align-items:baseline; justify-content:space-between; border-bottom:2px solid var(--ink); padding:.6rem 0 .5rem; margin-bottom:.9rem; }
+.mast h1{ font-size:1.3rem; letter-spacing:.12em; }
+.mast small{ color:var(--sub); font-size:.78rem; }
+.sample{ font-size:.72rem; color:var(--sub); border:1px dashed var(--rule); border-radius:3px; padding:0 .35rem; }
+.note{ color:var(--sub); font-size:.85rem; }
+
+.hello{ margin:0 0 .9rem; }
+.hello p{ margin:.4rem 0 0; }
+.why-box{ margin-top:.8rem; border-left:3px solid var(--shu); background:var(--sheet); padding:.6rem .8rem; border-radius:0 6px 6px 0; font-size:.92rem; }
+
+/* 国力年報と同じ形 */
+.pillar{ border:1px solid var(--rule); border-radius:6px; background:var(--sheet); padding:.55rem .8rem .6rem; border-top:3px solid var(--ink); }
+.pillar h2{ font-size:.82rem; letter-spacing:.12em; color:var(--sub); font-weight:700; }
+.pillar .v{ font-weight:700; font-size:2.2rem; line-height:1.1; margin:.1rem 0 0; }
+.pillar .d{ font-size:.82rem; } .up{ color:var(--ok); } .down{ color:var(--shu); }
+.pillar .s{ font-size:.76rem; color:var(--sub); margin-top:.15rem; }
+.sect{ position:relative; border:1px solid var(--rule); border-radius:6px; background:var(--sheet); margin:.7rem 0; padding:0 .8rem .75rem; overflow:hidden; }
+.sect > h3{ display:flex; align-items:baseline; gap:.6rem; margin:0 -.8rem .6rem; padding:.42rem .8rem; border-bottom:1px solid var(--rule); background:var(--head); font-size:.88rem; letter-spacing:.04em; }
+.sect > h3 small{ font-weight:400; font-size:.76rem; color:var(--sub); letter-spacing:0; }
+.sect > h3 .r{ margin-left:auto; }
+.lead{ margin:.1rem 0 .7rem; font-size:.82rem; color:var(--sub); }
+.chart svg{ width:100%; height:auto; display:block; }
+.chart .cap{ display:flex; justify-content:space-between; font-size:.76rem; color:var(--sub); }
+
+/* 省のパネル(省アプリと同じ色の帯) */
+.min{ border-top:3px solid var(--mc); }
+.min > h3 .tm{ font-weight:700; }
+.min .val{ font-weight:700; font-size:1.15rem; }
+.min .desc{ margin:0 0 .5rem; font-size:.86rem; color:var(--sub); }
+.min .bar{ height:6px; background:var(--rule); border-radius:3px; overflow:hidden; margin-bottom:.65rem; }
+.min .bar span{ display:block; height:100%; background:var(--mc); }
+
+.stamps{ display:flex; gap:.4rem; flex-wrap:wrap; }
+.stamps button{ border:1px solid var(--rule); background:transparent; border-radius:999px; padding:.25rem .7rem; font-size:.84rem; }
+.stamps button[aria-pressed="true"]{ border-color:var(--shu); background:var(--shu-soft); color:var(--shu); font-weight:700; }
+@keyframes press{ from{ transform:rotate(-14deg) scale(1.6); opacity:0 } to{ transform:rotate(-14deg) scale(1); opacity:.88 } }
+@media (prefers-reduced-motion: reduce){ .seal.pop{ animation:none; } }
+.axes{ display:grid; gap:.55rem; }
+.axis .lab{ display:flex; justify-content:space-between; font-size:.76rem; color:var(--sub); }
+.axis .now{ text-align:center; font-size:.82rem; font-weight:700; min-height:1.3em; }
+.axis .now.minus{ color:var(--shu); } .axis .now.plus{ color:var(--ok); } .axis .now.unset{ color:var(--rule); font-weight:400; }
+.axis input[type=range]{ -webkit-appearance:none; appearance:none; width:100%; margin:0; height:28px; background:transparent; --k:var(--ink); }
+.axis input[type=range]::-webkit-slider-runnable-track{ height:4px; border-radius:2px; background:var(--rule); }
+.axis input[type=range]::-moz-range-track{ height:4px; border-radius:2px; background:var(--rule); }
+.axis input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:22px; height:22px; margin-top:-9px; border-radius:50%; background:var(--k); border:2px solid var(--sheet); box-shadow:0 0 0 1px var(--k); }
+.axis input[type=range]::-moz-range-thumb{ width:20px; height:20px; border-radius:50%; background:var(--k); border:2px solid var(--sheet); box-shadow:0 0 0 1px var(--k); }
+.axis.minus input[type=range]{ --k:var(--shu); } .axis.plus input[type=range]{ --k:var(--ok); }
+.axis.unset input[type=range]{ --k:var(--rule); }
+.ticks{ display:flex; justify-content:space-between; padding:0 9px; margin-top:-6px; }
+.ticks i{ width:1px; height:5px; background:var(--rule); }
+.ticks i:nth-child(4){ height:8px; background:var(--sub); }
+.whyin{ margin-top:.55rem; }
+.whyin input{ width:100%; padding:.42rem .6rem; border:1px solid var(--rule); border-radius:4px; background:var(--paper); font-size:.88rem; }
+
+textarea{ width:100%; min-height:5em; padding:.6rem .7rem; border:1px solid var(--rule); border-radius:4px; background:var(--paper); resize:vertical; }
+.btn{ border:0; border-radius:4px; padding:.55rem 1.1rem; background:var(--ink); color:var(--paper); font-weight:700; }
+.btn.ghost{ background:transparent; color:var(--ink); border:1px solid var(--rule); }
+.btn.sm{ padding:.35rem .85rem; font-size:.85rem; }
+.saved{ font-size:.84rem; color:var(--ok); margin-left:.6rem; }
+.err{ color:var(--shu); font-size:.86rem; min-height:1.3em; }
+
+.gate{ min-height:65vh; display:flex; flex-direction:column; justify-content:center; gap:.8rem; }
+.gate h1{ font-size:1.25rem; }
+.gate p{ margin:0; color:var(--sub); font-size:.92rem; }
+.gate input{ width:100%; max-width:320px; padding:.65rem .8rem; border:1px solid var(--rule); border-radius:4px; background:var(--sheet); font-size:1rem; }
+
+.req{ border-top:1px dashed var(--rule); padding:.6rem 0; }
+.req:first-of-type{ border-top:0; }
+.req .top{ display:flex; gap:.55rem; align-items:baseline; }
+.req .when{ color:var(--sub); font-size:.76rem; margin-left:auto; white-space:nowrap; }
+.pill{ font-size:.74rem; border-radius:999px; padding:0 .55rem; border:1px solid currentColor; white-space:nowrap; }
+.pill.new{ color:var(--sub); } .pill.doing{ color:var(--warn); } .pill.done{ color:var(--ok); }
+.req .reply{ margin-top:.4rem; padding:.45rem .65rem; background:var(--paper); border-radius:4px; font-size:.88rem; }
+.req .ctl{ display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.5rem; }
+.req .ctl input{ flex:1 1 12em; min-width:0; padding:.42rem .6rem; border:1px solid var(--rule); border-radius:4px; background:var(--paper); font-size:.88rem; }
+.empty{ color:var(--sub); font-size:.9rem; padding:.4rem 0; }
+
+[hidden]{ display:none !important; }
+.tabs{ position:sticky; top:calc(env(safe-area-inset-top,0px) + 2.55rem); z-index:4; background:var(--paper); display:flex; gap:.3rem; overflow-x:auto; padding:.45rem 0 .5rem; margin:0 0 .5rem; border-bottom:1px solid var(--rule); scrollbar-width:none; }
+.tabs::-webkit-scrollbar{ display:none; }
+.tabs button{ flex:none; border:1px solid var(--rule); background:var(--sheet); border-radius:999px; padding:.25rem .8rem; font-size:.85rem; color:var(--sub); }
+.tabs button[aria-pressed="true"]{ background:var(--ink); border-color:var(--ink); color:var(--paper); font-weight:700; }
+.tabs button .n{ font-size:.72rem; margin-left:.2rem; }
+.allow{ display:grid; gap:.1rem; }
+.allow .g{ font-size:.76rem; color:var(--sub); font-weight:700; letter-spacing:.06em; margin:.6rem 0 .15rem; }
+.allow .g:first-child{ margin-top:0; }
+.sw{ all:unset; box-sizing:border-box; cursor:pointer; display:flex; align-items:center; gap:.6rem; padding:.4rem .2rem; border-radius:4px; font-size:.92rem; }
+.sw:focus-visible{ outline:2px solid var(--ink); }
+.sw .k{ width:2.2rem; height:1.25rem; border-radius:999px; background:var(--rule); position:relative; flex:none; transition:background .15s; }
+.sw .k::after{ content:""; position:absolute; top:2px; left:2px; width:calc(1.25rem - 4px); height:calc(1.25rem - 4px); border-radius:50%; background:var(--sheet); transition:left .15s; }
+.sw[aria-pressed="true"] .k{ background:var(--ok); }
+.sw[aria-pressed="true"] .k::after{ left:calc(2.2rem - 1.25rem + 2px); }
+.sw.sub{ padding-left:2.9rem; font-size:.84rem; color:var(--sub); }
+.sw[disabled]{ opacity:.4; cursor:default; }
+.swrow{ display:flex; align-items:center; gap:.4rem; }
+.swrow .sw{ flex:1; min-width:0; }
+.peekbtn{ flex:none; border:1px solid var(--rule); background:transparent; border-radius:4px; padding:.15rem .55rem; font-size:.78rem; color:var(--sub); }
+.peekbtn[aria-expanded="true"]{ background:var(--ink); border-color:var(--ink); color:var(--paper); }
+.peek{ border:1px solid var(--rule); border-left:3px solid var(--sub); border-radius:4px; padding:.5rem .7rem .55rem; margin:.15rem 0 .55rem; background:var(--paper); font-size:.88rem; }
+.peek.on{ border-left-color:var(--ok); }
+.peek .pl{ font-size:.72rem; color:var(--sub); font-weight:700; letter-spacing:.04em; margin-bottom:.3rem; }
+.peek .slogan{ font-size:1.05rem; }
+.peek .stages li{ padding:.25rem .5rem; font-size:.84rem; }
+.allbtns{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.6rem; }
+.allbtns .btn{ white-space:nowrap; }
+.hidden-note{ border:1px dashed var(--rule); border-radius:6px; padding:1rem; color:var(--sub); font-size:.9rem; text-align:center; }
+@media (prefers-reduced-motion: reduce){ .sw .k, .sw .k::after{ transition:none; } }
+.news li{ margin:.2rem 0; }
+.news{ margin:0; padding-left:1.1rem; font-size:.92rem; }
+.news b{ font-weight:700; }
+.q{ border-top:1px dashed var(--rule); padding:.6rem 0; }
+.q:first-of-type{ border-top:0; padding-top:.1rem; }
+.q .qq{ font-weight:700; font-size:.92rem; margin-bottom:.35rem; }
+.q .opts{ display:flex; flex-wrap:wrap; gap:.35rem; }
+.q .opts button{ border:1px solid var(--rule); background:var(--paper); border-radius:4px; padding:.3rem .7rem; font-size:.86rem; }
+.q .opts button.right{ border-color:var(--ok); color:var(--ok); background:transparent; font-weight:700; }
+.q .opts button.wrong{ border-color:var(--shu); color:var(--shu); text-decoration:line-through; background:transparent; }
+.q .opts button[disabled]{ cursor:default; }
+.q .ans{ font-size:.84rem; margin-top:.35rem; }
+.bet{ display:flex; gap:.4rem; flex-wrap:wrap; }
+.bet button{ flex:1; border:1px solid var(--rule); background:var(--paper); border-radius:6px; padding:.55rem; font-weight:700; }
+.bet button[aria-pressed="true"]{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.rec{ display:flex; gap:.6rem; flex-wrap:wrap; font-size:.84rem; color:var(--sub); margin-top:.5rem; }
+.rec b{ color:var(--ink); }
+.chal-form{ display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.3rem; }
+.chal-form input{ flex:1 1 12em; min-width:0; padding:.45rem .6rem; border:1px solid var(--rule); border-radius:4px; background:var(--paper); }
+.chal-form select{ padding:.4rem; border:1px solid var(--rule); border-radius:4px; background:var(--paper); color:var(--ink); }
+.pill.prop{ color:var(--sub); } .pill.acc{ color:var(--warn); } .pill.dec{ color:var(--sub); text-decoration:line-through; } .pill.win{ color:var(--ok); } .pill.lose{ color:var(--shu); }
+.badges{ display:grid; grid-template-columns:repeat(3, 1fr); gap:.45rem; }
+.badge{ border:1px solid var(--rule); border-radius:6px; padding:.5rem .35rem; text-align:center; font-size:.76rem; color:var(--sub); background:var(--paper); }
+.badge .i{ font-size:1.4rem; display:block; filter:grayscale(1); opacity:.35; }
+.badge b{ display:block; font-size:.82rem; color:var(--sub); }
+.badge.got{ border-color:var(--gold, #9A7B2F); background:var(--sheet); color:var(--ink); }
+.badge.got .i{ filter:none; opacity:1; }
+.badge.got b{ color:var(--ink); }
+.lock{ display:flex; gap:.5rem; align-items:flex-start; border:1px solid var(--rule); border-left:3px solid var(--ink); background:var(--paper); border-radius:0 4px 4px 0; padding:.45rem .6rem; font-size:.84rem; margin:.1rem 0 .6rem; }
+.lock .ic{ flex:none; }
+.sealed{ display:flex; gap:.6rem; align-items:center; border:1px dashed var(--sub); border-radius:6px; padding:.55rem .7rem; margin:.4rem 0; background:var(--paper); }
+.sealed .ic{ font-size:1.3rem; }
+.sealed .t{ flex:1; font-size:.88rem; }
+.sealed .t b{ display:block; font-size:.92rem; }
+.pill.c-seal{ color:var(--ink); } .pill.c-open{ color:var(--warn); } .pill.c-win{ color:var(--ok); } .pill.c-lose{ color:var(--shu); }
+.ptool{ font-size:.76rem; color:var(--sub); border:1px dashed var(--rule); border-radius:4px; background:transparent; padding:.2rem .55rem; margin-top:.5rem; }
+.manual > h3{ letter-spacing:.12em; }
+.manual h4{ margin:.9rem 0 .35rem; font-size:.86rem; display:flex; align-items:center; gap:.45rem; }
+.manual h4::before{ content:""; width:.55rem; height:.55rem; background:var(--shu); display:inline-block; }
+.manual p{ margin:0 0 .4rem; font-size:.92rem; }
+.manual ol{ margin:0; padding-left:1.4rem; font-size:.92rem; }
+.manual ol li{ margin:.25rem 0; }
+.manual ol li b{ font-weight:700; }
+.gloss{ display:grid; grid-template-columns:max-content 1fr; gap:.3rem .8rem; margin:0; font-size:.9rem; }
+.gloss dt{ font-weight:700; white-space:nowrap; }
+.gloss dd{ margin:0; color:var(--sub); }
+.manual ul{ margin:0; padding-left:1.2rem; font-size:.88rem; color:var(--sub); }
+.towrite{ display:block; margin:.4rem 0 0; border:1px dashed var(--rule); background:transparent; border-radius:6px; padding:.55rem; width:100%; font-size:.88rem; color:var(--sub); }
+.ptop{ display:flex; align-items:flex-end; gap:.9rem; flex-wrap:wrap; }
+.ptop .v{ font-weight:700; font-size:2.2rem; line-height:1; }
+.ptop .d{ font-size:.82rem; }
+.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
+.tile{ all:unset; box-sizing:border-box; cursor:pointer; display:block; border:1px solid var(--rule); border-top:3px solid var(--mc); border-radius:6px; background:var(--sheet); padding:.45rem .6rem .5rem; }
+.tile:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+.tile .nm{ display:flex; align-items:baseline; gap:.3rem; font-weight:700; font-size:.92rem; }
+.tile .nm .pinmark{ margin-left:auto; font-size:.8rem; }
+.tile .row2{ display:flex; align-items:baseline; gap:.4rem; margin:.1rem 0 .3rem; }
+.tile .row2 b{ font-size:1.35rem; }
+.tile .row2 small{ font-size:.76rem; color:var(--sub); }
+.tile .bar{ height:4px; background:var(--rule); border-radius:2px; overflow:hidden; }
+.tile .bar span{ display:block; height:100%; background:var(--mc); }
+.mrow{ display:flex; gap:.6rem; align-items:flex-start; padding:.5rem 0; border-top:1px dashed var(--rule); }
+.mrow:first-of-type{ border-top:0; padding-top:.1rem; }
+.mrow .t{ flex:1; font-size:.88rem; }
+.mrow .t b{ display:block; font-size:.92rem; }
+.pin.pinsm{ margin:0; padding:0; flex:none; width:2.3rem; height:2.3rem; display:grid; place-items:center; font-size:1rem; line-height:1; border-radius:50%; }
+.pins{ display:flex; gap:.4rem; flex-wrap:wrap; }
+.pin{ border:1px dashed var(--rule); background:transparent; border-radius:999px; padding:.2rem .7rem; font-size:.8rem; color:var(--sub); margin-top:.55rem; }
+.pin[aria-pressed="true"]{ border-style:solid; border-color:var(--shu); color:var(--shu); background:var(--shu-soft); font-weight:700; }
+.write{ border-top:3px solid var(--shu); }
+.write textarea{ min-height:11em; font-size:.98rem; line-height:1.75; }
+.chips{ display:flex; flex-wrap:wrap; gap:.35rem; margin:.3rem 0 .2rem; }
+.chips button{ border:1px solid var(--rule); background:var(--paper); border-radius:4px; padding:.25rem .6rem; font-size:.84rem; }
+.chips button.p{ border-color:var(--shu); color:var(--shu); background:var(--shu-soft); }
+.hint{ font-size:.8rem; color:var(--sub); margin:.7rem 0 .2rem; font-weight:700; letter-spacing:.04em; }
+.count{ font-size:.76rem; color:var(--sub); text-align:right; }
+.sent{ border-top:1px dashed var(--rule); padding:.5rem 0; font-size:.92rem; white-space:pre-wrap; }
+.sent:first-of-type{ border-top:0; }
+.sent .d{ font-size:.76rem; color:var(--sub); display:block; }
+.se-vol input{ accent-color:var(--ink); }
+.navrow{ display:flex; align-items:center; gap:.6rem; margin:.2rem 0 .8rem; }
+.back{ border:1px solid var(--rule); background:var(--sheet); border-radius:4px; padding:.3rem .8rem; font-size:.85rem; }
+.minlist button{ all:unset; box-sizing:border-box; display:block; width:100%; cursor:pointer; }
+.minlist .sect.min{ margin:.55rem 0; }
+.minlist .go{ font-size:.8rem; color:var(--sub); margin-top:.35rem; }
+.minlist button:focus-visible .sect{ outline:2px solid var(--ink); outline-offset:2px; }
+.purpose{ font-size:.95rem; margin:.1rem 0 .7rem; }
+.stages{ list-style:none; margin:0; padding:0; display:grid; gap:.35rem; }
+.stages li{ display:flex; gap:.6rem; align-items:baseline; padding:.4rem .6rem; border:1px solid var(--rule); border-radius:4px; font-size:.9rem; }
+.stages li .st{ font-size:.74rem; border-radius:999px; padding:0 .5rem; border:1px solid currentColor; white-space:nowrap; }
+.stages li.done{ color:var(--sub); } .stages li.done .st{ color:var(--ok); }
+.stages li.now{ border-color:var(--mc,var(--ink)); border-width:2px; } .stages li.now .st{ color:var(--mc,var(--ink)); font-weight:700; }
+.stages li.next .st{ color:var(--sub); }
+.wave{ border-left:3px solid var(--mc,var(--ink)); padding:.35rem .7rem; background:var(--paper); border-radius:0 4px 4px 0; font-size:.92rem; }
+.tasks{ display:flex; flex-wrap:wrap; gap:.35rem; }
+.tasks span{ font-size:.82rem; border:1px solid var(--rule); border-radius:4px; padding:.1rem .5rem; background:var(--paper); }
+.sub-h{ font-size:.8rem; color:var(--sub); font-weight:700; letter-spacing:.06em; margin:.8rem 0 .35rem; }
+.goal{ display:flex; gap:.6rem; align-items:center; font-size:.9rem; padding:.3rem 0; }
+.goal .gbar{ flex:1; height:6px; background:var(--rule); border-radius:3px; overflow:hidden; }
+.goal .gbar span{ display:block; height:100%; background:var(--ok); }
+.slogan{ font-size:1.25rem; font-weight:700; letter-spacing:.06em; margin:.1rem 0 .3rem; }
+.feat{ display:flex; gap:.6rem; align-items:baseline; padding:.35rem 0; border-top:1px dashed var(--rule); font-size:.92rem; }
+.feat:first-of-type{ border-top:0; }
+.feat .st{ font-size:.74rem; border-radius:999px; padding:0 .5rem; border:1px solid currentColor; white-space:nowrap; }
+.feat .st.on{ color:var(--warn); } .feat .st.ok{ color:var(--ok); }
+.feat .due{ margin-left:auto; color:var(--sub); font-size:.76rem; white-space:nowrap; }
+.mech p{ margin:0 0 .6rem; font-size:.9rem; }
+.tally .grp{ grid-column:1 / -1; font-size:.76rem; color:var(--sub); font-weight:700; letter-spacing:.06em; margin-top:.5rem; border-bottom:1px solid var(--rule); }
+.tally{ display:grid; grid-template-columns:minmax(5.5rem,auto) repeat(var(--ax), minmax(0,1fr)); gap:.35rem .6rem; align-items:center; }
+.tally .v{ font-size:.72rem; text-align:center; color:var(--sub); }
+.tally .h{ font-size:.76rem; color:var(--sub); text-align:center; }
+.tally .h:first-child{ text-align:left; }
+.tally .n{ text-align:center; color:var(--rule); }
+.tally .n.on{ color:var(--shu); font-weight:700; }
+.tally .q{ grid-column:1 / -1; font-size:.84rem; color:var(--sub); margin:-.1rem 0 .3rem; }
+.week{ border-top:1px dashed var(--rule); padding:.45rem 0; }
+.week:first-of-type{ border-top:0; }
+.week .d{ font-size:.76rem; color:var(--sub); }
+.locked{ margin-top:.7rem; font-size:.84rem; color:var(--sub); }
+</style><style>
+.rv-head{ display:flex; justify-content:space-between; align-items:center; gap:.5rem; margin-bottom:.5rem; font-size:.9rem; }
+.rv-p{ display:flex; align-items:center; gap:.35rem; padding:.2rem .5rem; border-radius:999px; border:1px solid transparent; }
+.rv-p.turn{ border-color:var(--ink); font-weight:700; }
+.disc{ width:1rem; height:1rem; border-radius:50%; display:inline-block; flex:none; }
+.disc.b{ background:#1d1b18; border:1px solid #000; } .disc.w{ background:#f7f5ef; border:1px solid #9b958a; }
+.rv-board{ display:grid; grid-template-columns:repeat(8, 1fr); gap:2px; background:#2b5a3f; padding:4px; border-radius:6px; max-width:420px; margin:0 auto; aspect-ratio:1; }
+.rv-board button{ all:unset; box-sizing:border-box; background:#3d7a55; display:grid; place-items:center; cursor:default; aspect-ratio:1; }
+.rv-board button.can{ cursor:pointer; }
+.rv-board button.can::after{ content:""; width:28%; height:28%; border-radius:50%; background:rgba(255,255,255,.35); }
+.rv-board button:focus-visible{ outline:2px solid #fff; outline-offset:-2px; }
+.rv-board .stone{ width:78%; height:78%; border-radius:50%; }
+.rv-board .stone.b{ background:radial-gradient(circle at 35% 30%, #4a4640, #141210 70%); }
+.rv-board .stone.w{ background:radial-gradient(circle at 35% 30%, #ffffff, #d9d4c8 75%); }
+.rv-board .stone.last{ box-shadow:0 0 0 2px #e0b04a; }
+.rv-msg{ text-align:center; margin:.5rem 0 0; font-size:.92rem; }
+.bt-q{ font-size:1.4rem; font-weight:700; text-align:center; margin:.6rem 0; font-variant-numeric:tabular-nums; }
+.bt-in{ display:flex; gap:.4rem; justify-content:center; }
+.bt-in input{ width:8em; font-size:1.2rem; text-align:center; padding:.45rem; border:1px solid var(--rule); border-radius:4px; background:var(--paper); }
+.bt-prog{ text-align:center; color:var(--sub); font-size:.84rem; }
+.rank{ display:grid; grid-template-columns:2rem 1fr auto auto; gap:.3rem .7rem; align-items:center; font-size:.92rem; }
+.rank .h{ font-size:.74rem; color:var(--sub); }
+.rank .w{ font-weight:700; }
+.book{ display:flex; gap:.5rem; align-items:baseline; padding:.4rem 0; border-top:1px dashed var(--rule); font-size:.9rem; }
+.book:first-of-type{ border-top:0; }
+.book .by{ margin-left:auto; color:var(--sub); font-size:.78rem; white-space:nowrap; }
+.pick{ text-align:center; padding:.6rem 0; }
+.pick .big{ font-size:1.3rem; font-weight:700; }
+.room-me{ text-align:center; padding:.6rem 0 .2rem; }
+.room-me .tm{ font-size:2.4rem; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.1; }
+.room-me .what{ font-size:.92rem; color:var(--sub); }
+.plans{ display:flex; gap:.35rem; flex-wrap:wrap; margin:.4rem 0; }
+.plans button{ border:1px solid var(--rule); background:var(--paper); border-radius:999px; padding:.25rem .75rem; font-size:.85rem; }
+.plans button[aria-pressed="true"]{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.who{ display:flex; align-items:center; gap:.6rem; padding:.5rem 0; border-top:1px dashed var(--rule); }
+.who:first-of-type{ border-top:0; }
+.who .dot{ width:.6rem; height:.6rem; border-radius:50%; background:var(--ok); flex:none; }
+.who .nm{ font-weight:700; }
+.who .r{ margin-left:auto; color:var(--sub); font-size:.84rem; font-variant-numeric:tabular-nums; }
+.today-sum{ display:flex; flex-wrap:wrap; gap:.35rem .9rem; font-size:.86rem; }
+.today-sum b{ font-variant-numeric:tabular-nums; }
+.areas{ display:flex; border:1px solid var(--rule); border-radius:999px; overflow:hidden; margin:0 0 .6rem; background:var(--sheet); }
+.areas button{ flex:1; border:0; background:transparent; padding:.45rem .6rem; font-size:.88rem; color:var(--sub); }
+.areas button[aria-pressed="true"]{ background:var(--ink); color:var(--paper); font-weight:700; }
+@media (max-width: 480px){ .pbar .tag{ display:none; } .pbar{ flex-wrap:nowrap; } .pbar select{ min-width:0; flex:1; } }
+.pbar select{ border:1px solid rgba(255,255,255,.35); background:transparent; color:var(--bar-ink); border-radius:999px; padding:.25rem .5rem; font-size:.8rem; }
+.pbar select option{ color:#222; }
+.req .ctl select{ padding:.35rem; border:1px solid var(--rule); border-radius:4px; background:var(--paper); color:var(--ink); }
+</style>
+<style>
+.ctl select{ padding:.35rem .4rem; border:1px solid var(--rule); border-radius:4px; background:var(--paper); color:var(--ink); font:inherit; font-size:.88rem; max-width:100%; }
+.linkx{ background:none; border:0; color:var(--sub); text-decoration:underline; font-size:.8rem; padding:0; cursor:pointer; }
+.toast{ position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom,0px) + 1rem); transform:translateX(-50%); background:var(--ink); color:var(--paper); padding:.55rem 1rem; border-radius:6px; font-size:.88rem; z-index:20; max-width:90vw; }
+.tabs{ top:env(safe-area-inset-top,0px); }
+</style>
+<style>.se-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.5rem 0;font-size:.86rem}.se-btn{min-width:2.6rem;border:1px solid #bbb;border-radius:999px;background:#fff;padding:.1rem .7rem;font:inherit;cursor:pointer}.se-btn[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}.se-vol{display:flex;align-items:center;gap:.3rem}.se-vol input{width:8rem}</style>
+</head>
+<body>
+<main id="app"></main>
+<footer style="max-width:640px;margin:0 auto;padding:0 .9rem 2rem"><span id="se-anchor"></span></footer>
+<div class="toast" id="toast" role="status" hidden></div>
+<script>
+/* ═══════════ 勉強の場(本番) ═══════════
+   データは非公開リポジトリの study.json に保存。鍵は招待リンクの # の後ろに入っていて、ページ本体には書かない。
+   リアルタイムではない:45秒ごとに読み直す。書き込むときは、最新を読んでから書く(ぶつかったら読み直して書き直す) */
+const APP_VERSION = "2026-10-25 s3";
+const SUBJECTS = ["数学", "英語", "国語", "理科", "社会", "その他"];
+const CONF_KEY = "study-conf";
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+let conf = lsGet(CONF_KEY, null);   // { repo, token, branch, me }
+const blankData = () => ({ version: 1, admin: null, linkVer: 1, members: [], qs: [], probs: [], books: [], bookLog: [], battles: [], room: { on: {}, log: [] }, presets: [], grants: {}, fb: [], ownerPub: null, sysAt: 0, events: [] });
+let S = blankData(), sha = null, loaded = false, loadErr = "", busy = false;
+
+/* ───── GitHub ───── */
+const b64enc = s => { const b = new TextEncoder().encode(s); let bin = ""; b.forEach(x => bin += String.fromCharCode(x)); return btoa(bin); };
+const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, "")), c => c.charCodeAt(0)));
+async function gh(path, opts){
+  opts = opts || {};
+  const r = await fetch("https://api.github.com/repos/" + conf.repo + "/contents/" + path + (opts.method ? "" : "?ref=" + (conf.branch || "main") + "&t=" + Date.now()), {
+    method: opts.method || "GET", headers: { Authorization: "Bearer " + conf.token, Accept: "application/vnd.github+json", "Content-Type": "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  return r;
+}
+async function load(){
+  const r = await gh("study.json");
+  if (r.status === 404) { S = blankData(); sha = null; loaded = true; return; }
+  if (r.status === 401 || r.status === 403) throw new Error("鍵が使えない(招待リンクが古いか、鍵の期限が切れている)");
+  if (!r.ok) throw new Error("読み込めない(" + r.status + ")");
+  const j = await r.json(); S = Object.assign(blankData(), JSON.parse(b64dec(j.content))); sha = j.sha; loaded = true;
+}
+/* 最新を読んで、変更を当てて、書く。ぶつかったらやり直す */
+async function mutate(fn, msg){
+  if (busy) return false; busy = true;
+  try {
+    for (let i = 0; i < 4; i++) {
+      await load(); const res = fn(S); if (res === false) return false;
+      const r = await gh("study.json", { method: "PUT", body: { message: msg || "勉強の場", content: b64enc(JSON.stringify(S)), branch: conf.branch || "main", ...(sha ? { sha } : {}) } });
+      if (r.ok) { sha = (await r.json()).content.sha; return true; }
+      if (r.status !== 409 && r.status !== 422) throw new Error("書き込めない(" + r.status + ")");
+      await new Promise(z => setTimeout(z, 300 + Math.random() * 500));
+    }
+    throw new Error("ほかの人と同時に書き込みがぶつかった。もう一度押して");
+  } catch (e) { toast(e.message); return false; }
+  finally { busy = false; }
+}
+
+/* ───── ふつうの道具 ───── */
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+async function hash(s, salt){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("study:" + salt + ":" + s)); return Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, "0")).join(""); }
+const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "今" : m < 60 ? m + "分前" : m < 1440 ? Math.round(m / 60) + "時間前" : Math.round(m / 1440) + "日前"; };
+const md = t => { const d = new Date(t); return (d.getMonth() + 1) + "/" + d.getDate(); };
+const me = () => conf && conf.me;
+const nameBy = id => ((S.members.find(x => x.id === id) || {}).name || "だれか");
+const isAdmin = () => !!me() && S.admin === me();
+const snd = n => { if (window.SE) SE.play(n); };
+function toast(t){ const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => { el.hidden = true; }, 3200); }
+
+/* ───── 画面の状態 ───── */
+let tab = lsGet("study-tab", "guide"), gateErr = "", openQ = null, randPick = null, roomPlan = 50, playing = null, viewing = null;
+const mins = t => Math.max(0, Math.floor((Date.now() - t) / 60000));
+const dayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const liveRoom = () => Object.fromEntries(Object.entries(S.room.on || {}).filter(([, v]) => Date.now() - v.start < 4 * 3600e3));   // 4時間以上たったものは終わったことにする
+
+/* ═════ はじめて(管理者の設定)・招待から入る・合言葉 ═════ */
+function setupScreen(){
+  return '<div class="gate"><h1>勉強の場をはじめる</h1><p>最初の1回だけ。データを置く非公開リポジトリと、そこだけを読み書きできる鍵を入れる。ここで設定した人が管理者になる。</p>' +
+    '<input id="srepo" placeholder="ユーザー名/study-data" aria-label="リポジトリ"><input id="stoken" type="password" placeholder="鍵(トークン)" aria-label="鍵"><input id="sbranch" placeholder="ブランチ(空なら main)" aria-label="ブランチ">' +
+    '<div class="err" role="alert">' + esc(gateErr) + '</div><div><button type="button" class="btn" id="setupgo">つなぐ</button></div>' +
+    '<p class="note">招待リンクから来た人は、この画面ではなく、入る画面が出る。</p></div>';
+}
+function joinScreen(){
+  const has = S.members.length > 0;
+  return '<div class="gate"><h1>' + (S.admin ? "勉強の場に招待されたよ" : "最初のメンバーとして入る") + '</h1><p>勉強の質問をしたり、問題を出し合ったり、一緒に勉強したりする場所。</p>' +
+    '<input id="jname" placeholder="ここで使う名前" aria-label="名前"><input id="p1" type="password" placeholder="合言葉(自分だけのもの)" aria-label="合言葉"><input id="p2" type="password" placeholder="合言葉をもう一回" aria-label="合言葉をもう一回">' +
+    '<div class="err" role="alert">' + esc(gateErr) + '</div><div><button type="button" class="btn" id="joinbtn">入る</button></div>' +
+    (has ? '<div class="sub-h" style="margin-top:1.2rem">前に入ったことがある</div><div class="chal-form"><select id="lname" aria-label="名前">' + S.members.map(m => '<option value="' + m.id + '">' + esc(m.name) + "</option>").join("") + '</select><input id="lpass" type="password" placeholder="合言葉" aria-label="合言葉"><button type="button" class="btn ghost sm" id="loginbtn">入る</button></div>' : "") + "</div>";
+}
+
+/* ═════ 説明書 ═════ */
+function guide(){
+  return '<div class="sect manual"><h3>説明書<small>勉強の場</small></h3>' +
+    '<h4>これは何</h4><p>勉強の質問をしたり、問題を出し合ったり、一緒に勉強したりする場所。学校で忙しくても、休み時間の数分で使えるように作ってる。</p>' +
+    '<h4>使い方</h4><ol><li><b>作業部屋</b>で「今から勉強する」を押すと、ほかの人に勉強中だと伝わる。<b>勉強会</b>の予定もここにある</li><li><b>勝負</b>で、だれかの募集に入ると勝負できる。自分で募集もできる</li>' +
+      '<li><b>質問板</b>に分からない問題を書く。気づいた人があとで答える</li><li><b>問題</b>で、今日の1問や、みんなの問題集からランダムな1問を解く</li><li><b>出す</b>で、問題を出したり、自分の問題集を登録したりする</li></ol>' +
+    '<h4>リアルタイムではない</h4><p>ほかの人が書いたことや打った手は、<b>だいたい1分以内</b>にこっちの画面に出る。すぐには出ないので、勝負はどれも「自分の空いた時間に進める」形になってる。同じ時間にいなくていい。</p>' +
+    '<h4>ここにいる人</h4><div class="tasks">' + S.members.map(m => "<span>" + esc(m.name) + "</span>").join("") + "</div>" +
+    '<h4>友達を呼ぶ</h4><p>このリンクを送れば、だれでも入れる。</p><div class="chal-form"><input id="invlink" readonly value="' + esc(inviteLink()) + '" aria-label="招待リンク"><button type="button" class="btn sm" id="copylink">コピー</button></div>' +
+    '<p class="note" style="margin:.35rem 0 0">送るときの例:「勉強の質問とか問題を出し合う場所。よかったら入って」</p>' +
+    '<h4>知っておいてほしいこと</h4><ul><li>書いたものは、ここにいる人全員に見える</li><li>勉強の記録(作業部屋の時間・解いた問題・勝負など)は、管理者の' + esc(nameBy(S.admin)) + 'がまとめて見られる。みんなで続けるために使う</li><li>招待リンクを知っている人なら、だれでも入れる。知らない人には送らないで</li><li>合言葉は自分だけのもの。ほかの人は君として入れない</li></ul></div>';
+}
+function inviteLink(){ if (!conf) return ""; const k = btoa(JSON.stringify({ r: conf.repo, t: conf.token, b: conf.branch || "main", f: conf.me || null })).replace(/=+$/, ""); return location.origin + location.pathname + "#k=" + k; }
+
+/* ═════ 作業部屋 ═════ */
+function room(){
+  const on = liveRoom(), mine = on[me()], others = Object.entries(on).filter(([k]) => k !== me());
+  const sum = {}; (S.room.log || []).filter(x => x.end >= dayStart()).forEach(x => { sum[x.who] = (sum[x.who] || 0) + Math.round((x.end - Math.max(x.start, dayStart())) / 60000); });
+  Object.entries(on).forEach(([k, v]) => { sum[k] = (sum[k] || 0) + mins(Math.max(v.start, dayStart())); });
+  return eventsHtml() + '<div class="sect"><h3>作業部屋<small>' + Object.keys(on).length + '人が勉強中</small></h3>' +
+    (mine ? '<div class="room-me"><div class="tm" data-since="' + mine.start + '">' + mins(mine.start) + '分</div><div class="what">' + esc(mine.sub) + (mine.what ? "・" + esc(mine.what) : "") + (mine.plan ? " ・ 目安 " + mine.plan + "分" : "") + '</div></div><div style="text-align:center;margin-top:.5rem"><button type="button" class="btn" id="roomend">おわり</button></div>'
+      : '<p class="lead">始めると、ほかの人の画面に「勉強中」と出る。だれかが続けてると、やめにくい。</p><div class="chal-form"><select id="roomsub" aria-label="科目">' + SUBJECTS.map(x => "<option>" + x + "</option>").join("") + '</select><input id="roomwhat" placeholder="なにをやる?(書かなくてもOK)" aria-label="なにをやるか"></div>' +
+        '<div class="plans" role="group" aria-label="目安の時間">' + [25, 50, 90, 0].map(n => '<button type="button" data-plan="' + n + '" aria-pressed="' + (roomPlan === n) + '">' + (n ? n + "分" : "決めない") + "</button>").join("") + '</div><button type="button" class="btn" id="roomstart">今から勉強する</button>') + "</div>" +
+    '<div class="sect"><h3>いま勉強中の人</h3>' + (others.length ? others.map(([k, v]) => '<div class="who"><span class="dot" aria-hidden="true"></span><span class="nm">' + esc(nameBy(k)) + "</span><span>" + esc(v.sub) + (v.what ? "・" + esc(v.what) : "") + '</span><span class="r" data-since="' + v.start + '">' + mins(v.start) + "分</span></div>").join("") : '<p class="empty">いまはだれもいない。</p>') +
+      (others.length && !mine ? '<div style="margin-top:.4rem"><button type="button" class="btn ghost sm" id="roomjoin">一緒にやる</button></div>' : "") + "</div>" +
+    '<div class="sect"><h3>今日の勉強時間</h3>' + (Object.keys(sum).length ? '<div class="today-sum">' + Object.entries(sum).sort((a, b) => b[1] - a[1]).map(([k, v]) => "<span>" + esc(nameBy(k)) + " <b>" + v + "分</b></span>").join("") + "</div>" : '<p class="empty">まだ記録がない。</p>') + "</div>";
+}
+
+/* ═════ 質問板 ═════ */
+function qCard(q){
+  const open = openQ === q.id, mine = q.by === me();
+  return '<div class="req"><div class="top"><span class="pill ' + (q.solved ? "done" : "doing") + '">' + esc(q.sub) + (q.solved ? "・解決" : "") + "</span><span>" + esc(q.text) + "</span></div>" +
+    '<div class="note" style="margin-top:.2rem">' + esc(nameBy(q.by)) + " ・ " + ago(q.at) + " ・ 答え " + q.ans.length + "件</div>" +
+    '<div class="ctl"><button type="button" class="btn ghost sm" data-openq="' + q.id + '">' + (open ? "閉じる" : "答えを見る・答える") + "</button>" + (mine && !q.solved && q.ans.length ? '<button type="button" class="btn ghost sm" data-solve="' + q.id + '">解決した</button>' : "") + "</div>" +
+    (open ? q.ans.map(a => '<div class="reply"><b>' + esc(nameBy(a.by)) + "</b> " + esc(a.text) + '<div class="note">' + ago(a.at) + "</div></div>").join("") + '<div class="ctl"><input data-ansin="' + q.id + '" placeholder="答えを書く(途中まででもOK)" aria-label="答え"><button type="button" class="btn sm" data-ans="' + q.id + '">答える</button></div>' : "") + "</div>";
+}
+function board(){
+  return '<div class="sect"><h3>質問を出す</h3><div class="chal-form"><select id="qsub" aria-label="科目">' + SUBJECTS.map(x => "<option>" + x + "</option>").join("") + '</select><input id="qtext" placeholder="分からないところを、そのまま書く" aria-label="質問"><button type="button" class="btn sm" id="sendq">質問する</button></div></div>' +
+    '<div class="sect"><h3>質問板<small>まだ解決していない ' + S.qs.filter(q => !q.solved).length + "件</small></h3>" + (S.qs.length ? S.qs.slice().sort((a, b) => (a.solved - b.solved) || (b.at - a.at)).map(qCard).join("") : '<p class="empty">まだ質問はない。最初の1つを出してみて。</p>') + "</div>";
+}
+
+/* ═════ 問題 ═════ */
+function probCard(p, big){
+  const r = (p.res || {})[me()], answered = !!r, ch = p.choices || [];
+  const n = Object.keys(p.res || {}).length, right = Object.values(p.res || {}).filter(x => x.ok).length;
+  return '<div class="' + (big ? "" : "req") + '"><div class="top"><span class="pill doing">' + esc(p.sub) + '</span><span class="note">' + esc(nameBy(p.by)) + "の問題 ・ " + ago(p.at) + "</span></div>" +
+    '<div style="font-size:' + (big ? "1.15rem" : ".95rem") + ';font-weight:700;margin:.4rem 0">' + esc(p.q) + "</div>" +
+    (ch.length ? '<div class="q"><div class="opts">' + ch.map(c => '<button type="button" data-pans="' + p.id + '" data-v="' + esc(c) + '"' + (answered ? " disabled" : "") + ' class="' + (answered ? (c === p.a ? "right" : c === r.ans ? "wrong" : "") : "") + '">' + esc(c) + "</button>").join("") + "</div></div>"
+      : (answered ? "" : '<div class="ctl"><button type="button" class="btn ghost sm" data-pshow="' + p.id + '">答えを見る</button></div>')) +
+    (answered && r.decided ? '<div class="ans ' + (r.ok ? "up" : "down") + '">' + (r.ok ? "正解!" : "答えは " + esc(p.a)) + "</div>" + (p.ex ? '<div class="reply">解説:' + esc(p.ex) + "</div>" : "") : "") +
+    (answered && !ch.length && !r.decided ? '<div class="ctl"><span class="note">答え:' + esc(p.a) + '</span><button type="button" class="btn sm" data-pself="' + p.id + '" data-v="1">できた</button><button type="button" class="btn ghost sm" data-pself="' + p.id + '" data-v="0">できなかった</button></div>' : "") +
+    '<div class="note" style="margin-top:.3rem">解いた人 ' + n + "人 ・ 正解 " + right + "人</div></div>";
+}
+function problems(){
+  const list = S.probs.slice().sort((a, b) => b.at - a.at), today = list[0];
+  let pick = "";
+  if (randPick && randPick.kind === "prob") { const p = S.probs.find(x => x.id === randPick.id); if (p) pick = probCard(p, true); }
+  if (randPick && randPick.kind === "book") { const b = S.books.find(x => x.id === randPick.id); if (b) { const done = S.bookLog.find(x => x.who === me() && x.book === b.id && x.no === randPick.no && x.at > Date.now() - 6e5);
+    pick = '<div class="pick"><div class="note">' + esc(nameBy(b.by)) + 'の問題集から</div><div class="big">' + esc(b.name) + " " + esc(b.kind) + " " + randPick.no + '</div><div class="note">' + esc(b.sub) + "</div>" +
+      (done ? '<div class="ans ' + (done.ok ? "up" : "down") + '">' + (done.ok ? "解けた" : "解けなかった") + "</div>" : '<div class="ctl" style="justify-content:center"><button type="button" class="btn sm" data-bookdone="1">解けた</button><button type="button" class="btn ghost sm" data-bookdone="0">解けなかった</button></div>') + "</div>"; } }
+  return '<div class="sect"><h3>今日の1問<small>いちばん新しい問題</small></h3>' + (today ? probCard(today, true) : '<p class="empty">まだ問題がない。「出す」から出してみて。</p>') + "</div>" +
+    '<div class="sect"><h3>ランダムで1問<small>みんなが登録したものから</small></h3><div class="ctl"><button type="button" class="btn sm" data-rand="prob">みんなの問題から</button><button type="button" class="btn sm" data-rand="book">みんなの問題集から</button></div>' + (pick ? '<div style="margin-top:.6rem">' + pick + "</div>" : "") + "</div>" +
+    (list.length > 1 ? '<div class="sect"><h3>前の問題</h3>' + list.slice(1, 30).map(p => probCard(p, false)).join("") + "</div>" : "");
+}
+function make(){
+  return '<div class="sect"><h3>問題を出す</h3><div class="chal-form"><select id="psub" aria-label="科目">' + SUBJECTS.map(x => "<option>" + x + "</option>").join("") + '</select></div>' +
+    '<textarea id="pq" placeholder="問題文" style="min-height:4em;margin-top:.4rem" aria-label="問題文"></textarea><div class="chal-form"><input id="pa" placeholder="答え" aria-label="答え"><input id="pc" placeholder="選択肢(任意・読点区切り)" aria-label="選択肢"></div>' +
+    '<textarea id="pex" placeholder="解説(任意)" style="min-height:3em;margin-top:.4rem" aria-label="解説"></textarea><div style="margin-top:.5rem;display:flex;gap:.4rem;flex-wrap:wrap"><button type="button" class="btn sm" id="sendp">出題する</button><button type="button" class="btn ghost sm" id="drillp">計算の問題を1問作る</button></div>' +
+    '<p class="note" style="margin:.5rem 0 0">選択肢を書くとタップで答えられる問題に、書かないと「答えを見て自分で丸つけ」の問題になる。</p></div>' +
+    '<div class="sect"><h3>問題集を登録する<small>ランダムに出す元になる</small></h3><div class="chal-form"><select id="bsub" aria-label="科目">' + SUBJECTS.map(x => "<option>" + x + "</option>").join("") + '</select><input id="bname" placeholder="問題集の名前(例:青チャート数学IA)" aria-label="問題集の名前"></div>' +
+      '<div class="chal-form"><input id="bkind" placeholder="例題・No. など" style="flex:0 0 7em" aria-label="番号の呼び方"><input id="bfrom" type="number" min="1" value="1" style="flex:0 0 5em" aria-label="はじめの番号"><span style="align-self:center">〜</span><input id="bto" type="number" min="1" value="100" style="flex:0 0 5em" aria-label="おわりの番号"><button type="button" class="btn sm" id="addbook">登録する</button></div>' +
+      (S.books.length ? '<div style="margin-top:.5rem">' + S.books.map(b => '<div class="book"><span class="pill doing">' + esc(b.sub) + "</span><span>" + esc(b.name) + " " + esc(b.kind) + " " + b.from + "〜" + b.to + '</span><span class="by">' + esc(nameBy(b.by)) + (b.by === me() ? ' <button type="button" class="linkx" data-delbook="' + b.id + '">消す</button>' : "") + "</span></div>").join("") + "</div>" : "") + "</div>";
+}
+
+/* ═════ 勝負 ═════ */
+const calcQ = () => { const t = Math.floor(Math.random() * 3); let A, B, q, a;
+  if (t === 0) { A = 12 + Math.floor(Math.random() * 88); B = 3 + Math.floor(Math.random() * 7); q = A + " × " + B; a = A * B; }
+  else if (t === 1) { A = 120 + Math.floor(Math.random() * 880); B = 45 + Math.floor(Math.random() * 400); q = A + " + " + B; a = A + B; }
+  else { A = 11 + Math.floor(Math.random() * 19); q = A + "²"; a = A * A; }
+  return { q, a: String(a) }; };
+const BT_TYPES = { calc: "計算タイムアタック", pool: "みんなの問題から", reversi: "リバーシ" };
+const BT_ST = { open: "募集中", play: "勝負中", done: "決着" };
+function makeQs(type, n){ if (type === "pool") { const pool = S.probs.filter(p => p.choices && p.choices.length).sort(() => Math.random() - .5).slice(0, n).map(p => ({ q: p.q, a: p.a, choices: p.choices })); while (pool.length < n) pool.push(calcQ()); return pool; } return Array.from({ length: n }, calcQ); }
+const DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+const rvNew = () => { const g = Array(64).fill(0); g[27] = 2; g[28] = 1; g[35] = 1; g[36] = 2; return g; };
+function rvFlips(g, i, c){ if (g[i]) return []; const r0 = Math.floor(i / 8), c0 = i % 8, out = [];
+  DIRS.forEach(([dr, dc]) => { const line = []; let r = r0 + dr, cc = c0 + dc; while (r >= 0 && r < 8 && cc >= 0 && cc < 8 && g[r * 8 + cc] === 3 - c) { line.push(r * 8 + cc); r += dr; cc += dc; }
+    if (line.length && r >= 0 && r < 8 && cc >= 0 && cc < 8 && g[r * 8 + cc] === c) out.push(...line); }); return out; }
+const rvMoves = (g, c) => g.map((_, i) => i).filter(i => rvFlips(g, i, c).length);
+const rvCount = g => [g.filter(x => x === 1).length, g.filter(x => x === 2).length];
+const myTurnRv = b => b.type === "reversi" && b.state === "play" && b.members.indexOf(me()) + 1 === b.turn;
+function battleCard(b){
+  const inIt = b.members.includes(me());
+  if (b.type === "reversi") { const [nb, nw] = rvCount(b.board);
+    return '<div class="req"><div class="top"><span class="pill ' + (b.state === "open" ? "new" : b.state === "play" ? "doing" : "done") + '">' + BT_ST[b.state] + '</span><span><b>リバーシ</b></span><span class="when">' + b.members.length + "/2人</span></div>" +
+      '<div class="note">' + esc(nameBy(b.host)) + "の募集 ・ " + ago(b.at) + (b.members.length > 1 ? " ・ " + esc(nameBy(b.members[0])) + "(黒" + nb + ")対 " + esc(nameBy(b.members[1])) + "(白" + nw + ")" : "") + (b.state === "done" ? " ・ " + (b.winner ? "🏆 " + esc(nameBy(b.winner)) : "引き分け") : "") + "</div>" +
+      '<div class="ctl">' + (b.state === "open" ? (inIt ? '<span class="note">相手を待ってる</span>' : '<button type="button" class="btn sm" data-btjoin="' + b.id + '">入る</button>') : '<button type="button" class="btn ' + (myTurnRv(b) ? "" : "ghost ") + 'sm" data-openrv="' + b.id + '">' + (myTurnRv(b) ? "君の番。打つ" : "盤を見る") + "</button>") + "</div></div>"; }
+  const r = b.results || {}, mineDone = !!r[me()];
+  const rows = b.members.map(id => ({ id, res: r[id] })).sort((x, y) => (y.res ? y.res.score : -1) - (x.res ? x.res.score : -1) || (x.res ? x.res.ms : 9e9) - (y.res ? y.res.ms : 9e9));
+  return '<div class="req"><div class="top"><span class="pill ' + (b.state === "open" ? "new" : b.state === "play" ? "doing" : "done") + '">' + BT_ST[b.state] + "</span><span><b>" + esc(BT_TYPES[b.type]) + "</b> " + b.n + '問</span><span class="when">' + b.members.length + "/" + b.cap + "人</span></div>" +
+    '<div class="note">' + esc(nameBy(b.host)) + "の募集 ・ " + ago(b.at) + " ・ 参加:" + b.members.map(x => esc(nameBy(x))).join("、") + "</div>" +
+    (b.state === "open" ? '<div class="ctl">' + (inIt ? (b.host === me() && b.members.length >= 2 ? '<button type="button" class="btn sm" data-btstart="' + b.id + '">このメンバーで始める</button>' : '<span class="note">集まるのを待ってる</span>') : '<button type="button" class="btn sm" data-btjoin="' + b.id + '">入る</button>') + "</div>" : "") +
+    (b.state !== "open" && inIt && !mineDone ? '<div class="ctl"><button type="button" class="btn sm" data-btplay="' + b.id + '">挑む</button><span class="note">押すとタイムが計り始まる</span></div>' : "") +
+    (b.state !== "open" ? '<div class="rank" style="margin-top:.5rem"><span class="h">順位</span><span class="h">名前</span><span class="h">正解</span><span class="h">タイム</span>' + rows.map((x, i) => '<span class="' + (b.state === "done" && i === 0 ? "w" : "") + '">' + (x.res ? (b.state === "done" && i === 0 ? "🏆" : i + 1) : "—") + '</span><span class="' + (b.state === "done" && i === 0 ? "w" : "") + '">' + esc(nameBy(x.id)) + "</span><span>" + (x.res ? x.res.score + "/" + b.n : "まだ") + "</span><span>" + (x.res ? (x.res.ms / 1000).toFixed(1) + "秒" : "") + "</span>").join("") + "</div>" : "") + "</div>";
+}
+function battlePlay(){
+  const b = S.battles.find(x => x.id === playing.id), q = b.qs[playing.i];
+  return '<div class="sect"><h3>' + esc(BT_TYPES[b.type]) + "<small>" + (playing.i + 1) + " / " + b.n + '</small></h3><div class="bt-prog" data-since-ms="' + playing.start + '">挑戦中</div><div class="bt-q">' + esc(q.q) + "</div>" +
+    (q.choices ? '<div class="q"><div class="opts" style="justify-content:center">' + q.choices.map(c => '<button type="button" data-btans="' + esc(c) + '">' + esc(c) + "</button>").join("") + "</div></div>" : '<div class="bt-in"><input id="btin" inputmode="numeric" autocomplete="off" aria-label="答え"><button type="button" class="btn" id="btsend">答える</button></div>') + "</div>";
+}
+function reversiView(){
+  const b = S.battles.find(x => x.id === viewing); if (!b) { viewing = null; return battles(); }
+  const g = b.board, [nb, nw] = rvCount(g), black = b.members[0], white = b.members[1], moves = myTurnRv(b) ? rvMoves(g, b.turn) : [];
+  let msg = b.state === "done" ? (b.winner ? "🏆 " + esc(nameBy(b.winner)) + "の勝ち(" + nb + " 対 " + nw + ")" : "引き分け(" + nb + " 対 " + nw + ")") : myTurnRv(b) ? "君の番。光っているところに打てる" : esc(nameBy(b.turn === 1 ? black : white)) + "の番。打ったら、こっちの番になる(反映まで1分ほど)";
+  if (b.passNote && b.state === "play") msg = esc(b.passNote) + " " + msg;
+  return '<div class="navrow"><button type="button" class="back" id="closerv">← 勝負の一覧へ</button></div><div class="sect"><h3>リバーシ<small>' + esc(nameBy(black)) + " 対 " + esc(white ? nameBy(white) : "") + "</small></h3>" +
+    '<div class="rv-head"><span class="rv-p' + (b.state === "play" && b.turn === 1 ? " turn" : "") + '"><span class="disc b"></span>' + esc(nameBy(black)) + " " + nb + '</span><span class="rv-p' + (b.state === "play" && b.turn === 2 ? " turn" : "") + '"><span class="disc w"></span>' + esc(white ? nameBy(white) : "") + " " + nw + "</span></div>" +
+    '<div class="rv-board" role="grid" aria-label="リバーシの盤">' + g.map((v, i) => { const can = moves.includes(i); return '<button type="button"' + (can ? ' class="can" data-rv="' + i + '" aria-label="' + (Math.floor(i / 8) + 1) + "行" + (i % 8 + 1) + '列に打つ"' : ' tabindex="-1" aria-label="' + (v ? (v === 1 ? "黒" : "白") : "空き") + '"') + ">" + (v ? '<span class="stone ' + (v === 1 ? "b" : "w") + (b.last === i ? " last" : "") + '"></span>' : "") + "</button>"; }).join("") + "</div>" +
+    '<p class="rv-msg">' + msg + "</p></div>";
+}
+function battles(){
+  if (playing) return battlePlay();
+  if (viewing) return reversiView();
+  const list = S.battles.slice().sort((a, b) => ({ open: 0, play: 1, done: 2 }[a.state] - { open: 0, play: 1, done: 2 }[b.state]) || b.at - a.at).slice(0, 40);
+  return '<div class="sect"><h3>勝負を募集する</h3><div class="chal-form"><select id="bttype" aria-label="種類">' + Object.entries(BT_TYPES).map(([k, l]) => '<option value="' + k + '">' + l + "</option>").join("") + '</select><select id="btn" aria-label="問題数"><option value="5">5問</option><option value="10">10問</option></select><select id="btcap" aria-label="人数"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option></select><button type="button" class="btn sm" id="btopen">募集する</button></div>' +
+      '<p class="note" style="margin:.4rem 0 0">人数がそろうと勝負が始まる。問題の勝負は、全員が同じ問題をそれぞれ空いた時間に解いて、正解数とタイムで順位が決まる。リバーシは2人で、交代で1手ずつ。どれも同時にいなくていい。</p></div>' +
+    '<div class="sect"><h3>勝負の一覧<small>' + S.battles.filter(x => x.state === "open").length + "件 募集中</small></h3>" + (list.length ? list.map(battleCard).join("") : '<p class="empty">まだ勝負はない。募集してみて。</p>') + "</div>";
+}
+
+/* ═════ 管理(最初に設定した人だけ) ═════ */
+function admin(){
+  return '<div class="sect"><h3>メンバー<small>' + S.members.length + '人</small></h3><p class="lead">メンバーは招待リンクで自由に増える。困った人がいたら外せる。</p>' +
+    S.members.slice().sort((a, b) => a.at - b.at).map(m => '<div class="req"><div class="top"><b>' + esc(m.name) + "</b>" + (m.id === S.admin ? '<span class="pill done">管理者</span>' : "") + '<span class="when">' + md(m.at) + " に参加</span></div>" +
+      '<div class="note">' + (m.by ? esc(nameBy(m.by)) + "の招待" : "最初のメンバー") + "</div>" + (m.id !== S.admin ? '<div class="ctl"><button type="button" class="linkx" data-delm="' + m.id + '">外す</button></div>' : "") + "</div>").join("") +
+    '<p class="note" style="margin:.6rem 0 0">外した人も、招待リンクを持っている限り、また入れてしまう。完全に締め出すときは、GitHubで鍵(トークン)を作り直して、新しい招待リンクをみんなに送り直す。</p></div>' +
+    "";
+}
+function adminDevice(){ return '<div class="sect"><h3>この端末</h3><p class="note">版 ' + APP_VERSION + " ・ " + esc(conf.repo) + '</p><button type="button" class="btn ghost sm" id="logout">この端末から出る</button></div>'; }
+
+/* ═══════════ 体制(管理者が選んだ人にだけ見える) ═══════════
+   ・端末ごとに鍵の組(ECDH)を自動で作る。公開鍵だけを study.json に置く
+   ・管理者は自分の体制のリポジトリを読み(管理者の端末にだけある鍵で)、セットごとに見せていいものだけを集め、
+     セットの鍵(AES)で暗号にして sys/<セット>.json に書く。セットの鍵は、見せる人の端末の公開鍵ごとに包んで grants に置く
+   ・感想・依頼は、管理者にしか開けない形(メンバーの秘密鍵 × 管理者の公開鍵)で fb に置く */
+const OWNER_CONF_KEY = "study-owner-conf", KEYS_KEY = "study-keys";
+const MECH_GROUPS = ["毎日を回す", "心と習慣", "守りと記録", "勉強の道具"];
+const MECHS = [
+  { id: "roadmap", g: "毎日を回す", name: "行軍表", text: "毎朝、その日のタスクを、場所・時間・優先順位から自動で並べる" },
+  { id: "pomodoro", g: "毎日を回す", name: "ポモドーロ", text: "机の作業と、運動・休憩を交互に回すタイマー" },
+  { id: "tejun", g: "毎日を回す", name: "手順録", text: "よくやる作業の手順書(分かれ道つき)" },
+  { id: "tentai", g: "毎日を回す", name: "天体制度", text: "大きいタスクを最大8つに分けて少しずつ進める" },
+  { id: "tanren", g: "毎日を回す", name: "鍛錬", text: "家でのストレッチや筋トレを、動きのアニメと声の案内で進める" },
+  { id: "jinko", g: "心と習慣", name: "人工反射", text: "いつ来るか分からない合図で、決めた動きを反射のように身につける" },
+  { id: "lens", g: "心と習慣", name: "レンズ", text: "尊敬する人物になりきって、ものの見え方を切り替える" },
+  { id: "katsuryoku", g: "心と習慣", name: "活力バッテリー", text: "やる気が落ちたときに、目的を思い出して充電する" },
+  { id: "sekisho", g: "心と習慣", name: "関所", text: "動画を、役に立つ時間と、ただ流れる時間に分けて量を決める" },
+  { id: "security", g: "守りと記録", name: "防衛省の備え", text: "サボりやすい場面を記録して、先回りで備える" },
+  { id: "prestige", g: "守りと記録", name: "偉業と威信", text: "大きな目標を達成すると「威信」が上がる" },
+  { id: "eiten", g: "守りと記録", name: "栄典", text: "できるようになったことを実績として樹形図に並べる" },
+  { id: "kenpou", g: "守りと記録", name: "憲法", text: "自分が信じるもの・守るものを決めた、いちばん上のきまり" },
+  { id: "anki", g: "勉強の道具", name: "Ankiのノートタイプ", text: "科目ごとに作り込んだ暗記カード" },
+  { id: "range", g: "勉強の道具", name: "演習範囲", text: "数学の問題集の進みと、問題ごとの出来を管理する" },
+  { id: "shian", g: "勉強の道具", name: "思案", text: "思いつきのメモと、知識の図書館" }
+];
+const MCOLORS = ["#B5432F","#2F4F8A","#3D7A55","#8A5A9E","#B07D2A","#2C7F8C","#A8476F","#5B6E2E","#7A4E2D","#3E5FA8"];
+
+/* ───── 鍵 ───── */
+const ub64 = buf => { let s = ""; new Uint8Array(buf).forEach(x => s += String.fromCharCode(x)); return btoa(s); };
+const bu64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+let devKeys = null;   // { priv: CryptoKey, pub: JWK, kid }
+async function ensureKeys(){
+  if (devKeys) return devKeys;
+  let st = lsGet(KEYS_KEY, null);
+  if (!st) { const kp = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]);
+    st = { priv: await crypto.subtle.exportKey("jwk", kp.privateKey), pub: await crypto.subtle.exportKey("jwk", kp.publicKey) };
+    st.kid = (await hash(st.pub.x + st.pub.y, "kid")).slice(0, 12); lsSet(KEYS_KEY, st); }
+  devKeys = { priv: await crypto.subtle.importKey("jwk", st.priv, { name: "ECDH", namedCurve: "P-256" }, false, ["deriveKey"]), pub: st.pub, kid: st.kid };
+  return devKeys;
+}
+async function shared(pubJwk){ const k = await ensureKeys(), pub = await crypto.subtle.importKey("jwk", pubJwk, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  return crypto.subtle.deriveKey({ name: "ECDH", public: pub }, k.priv, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]); }
+async function enc(key, text){ const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, typeof text === "string" ? new TextEncoder().encode(text) : text); return { iv: ub64(iv), ct: ub64(ct) }; }
+async function dec(key, box, raw){ const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bu64(box.iv) }, key, bu64(box.ct)); return raw ? pt : new TextDecoder().decode(pt); }
+/* 自分の公開鍵を、メンバーの記録に載せる(端末ごと。最新3つまで) */
+async function publishMyKey(){
+  if (!me()) return; const k = await ensureKeys(), m = S.members.find(x => x.id === me()); if (!m || (m.pubs || []).some(p => p.kid === k.kid)) return;
+  await mutate(D => { const mm = D.members.find(x => x.id === me()); if (!mm) return false; mm.pubs = (mm.pubs || []).filter(p => p.kid !== k.kid).concat([{ kid: k.kid, jwk: k.pub }]).slice(-3); }, "端末の鍵");
+}
+
+/* ───── 管理者:体制のデータを集める ───── */
+let ownerConf = lsGet(OWNER_CONF_KEY, null), sysSource = null, sysSourceErr = "";
+async function ghOwner(path){ const r = await fetch("https://api.github.com/repos/" + ownerConf.repo + "/contents/" + path + "?ref=" + (ownerConf.branch || "main") + "&t=" + Date.now(), { headers: { Authorization: "Bearer " + ownerConf.token, Accept: "application/vnd.github+json" } });
+  if (r.status === 404) return null; if (!r.ok) throw new Error(path + " が読めない(" + r.status + ")"); const j = await r.json(); return JSON.parse(b64dec(j.content)); }
+const dkey = d => d.toISOString().slice(0, 10);
+async function buildSource(){
+  const [stats, pre, staff, amb, struct, notes] = await Promise.all(["docs/data/stats.json", "roadmap/gov/prestige.json", "roadmap/gov/staff.json", "roadmap/gov/ambition.json", "roadmap/gov/structure.json", "roadmap/gov/notes.json"].map(p => ghOwner(p).catch(() => null)));
+  const src = { owner: nameBy(S.admin), at: Date.now() };
+  if (stats && stats.power_history && stats.power_history.length) { const ph = stats.power_history.slice(-30), last = ph[ph.length - 1].power, prev = (ph[ph.length - 8] || ph[0]).power;
+    src.power = { last: Math.round(last * 10) / 10, diff: Math.round((last - prev) * 10) / 10, series: ph.map(x => Math.round(x.power * 10) / 10), from: ph[0].date }; }
+  if (stats && stats.ministry_latest) { const ml = stats.ministry_latest; src.breakdown = { land: Math.round(ml.reduce((a, x) => a + (x.territory || 0), 0)), depth: Math.round(ml.reduce((a, x) => a + (x.dominance || 0), 0) / Math.max(1, ml.length) * 10) / 10 }; }
+  if (pre && pre.value != null) src.iishin = { value: pre.value, feat: pre["実績"], gov: pre["統治"], trust: pre["信用"] };
+  if (staff && staff.terms && staff.terms.length) { const today = dkey(new Date()), t = staff.terms.slice().reverse().find(x => (!x.start || x.start <= today) && (!x.end || x.end >= today)) || staff.terms[staff.terms.length - 1];
+    src.term = { name: t.name || "作戦期", end: t.end || "", slogan: (t.slogan && (t.slogan.text || t.slogan.title)) || "", goals: (t.goals || []).map(g => ({ text: g.text, now: g.values && g.values.length ? g.values[g.values.length - 1].value : 0, target: g.target || 0, unit: g.unit || "" })) }; }
+  if (amb && amb.feats) src.feats = amb.feats.slice(-8).map(f => ({ name: f.name, st: f.status === "終わり" ? (f.result ? "達成" : "終わり") : (f.status || "挑戦中"), due: f.due ? f.due.slice(5).replace("-", "/") : "" }));
+  // 省:structure.json の省(名前・目的・STAGE・WAVE)と、stats の国力・今週の伸び・タスク
+  const ms = (struct && struct.ministries) || [], latest = (stats && stats.ministry_latest) || [], hist = (stats && stats.ministry_history) || [], tags = (stats && stats.gov_raw && stats.gov_raw.tags) || {};
+  const names = ms.length ? ms.map(m => ({ tag: m.tag, name: m.name || m.tag + "省", m })) : latest.map(x => ({ tag: String(x.ministry).replace(/省$/, ""), name: x.ministry, m: null }));
+  const lastDate = hist.length ? hist[hist.length - 1].date : null, weekAgo = lastDate ? dkey(new Date(new Date(lastDate).getTime() - 7 * 864e5)) : null;
+  src.mins = names.map(({ tag, name, m }, i) => { const L = latest.find(x => x.ministry === name || String(x.ministry).replace(/省$/, "") === tag) || {};
+    const now = hist.filter(h => h.tag === tag && h.date === lastDate)[0], then = hist.filter(h => h.tag === tag && h.date <= weekAgo).slice(-1)[0];
+    const purpose = (notes && notes.purposes && notes.purposes[tag]) || (m && m.purpose && m.purpose.text) || "";
+    const lab = x => (x.label ? x.label + " " : "") + (x.subject || x.title || x.name || "");
+    return { id: "m:" + tag, tag, name, color: MCOLORS[i % MCOLORS.length], power: Math.round((L.power || 0) * 10) / 10, wk: now && then ? Math.round((now.power - then.power) * 10) / 10 : 0, purpose,
+      stages: m && m.stages ? m.stages.filter(x => !String(x.label || "").includes("-")).map(lab).filter(Boolean).slice(0, 8) : [],
+      waves: m && m.waves ? m.waves.filter(x => !String(x.label || "").includes("-")).map(lab).filter(Boolean).slice(0, 8) : [],
+      tasks: Object.entries(tags).filter(([, ts]) => (ts || []).includes(tag)).map(([n]) => n).slice(0, 10) }; }).filter(x => x.name !== "全体");
+  src.mechs = MECHS;
+  return src;
+}
+const ALLOW_IDS = src => ["p:news", "p:quiz", "p:pred", "p:chal", "power", "breakdown", "iishin", "term", "feats"].concat((src.mins || []).flatMap(m => [m.id, m.id + ":detail"]), MECHS.map(x => x.id));
+/* セットで許したものだけを残す */
+function filterFor(src, allow){
+  const a = allow || {}, out = { owner: src.owner, at: src.at, flags: { news: !!a["p:news"], quiz: !!a["p:quiz"], pred: !!a["p:pred"], chal: !!a["p:chal"] } };
+  ["power", "breakdown", "iishin", "term", "feats"].forEach(k => { if (a[k] && src[k]) out[k] = src[k]; });
+  out.mins = (src.mins || []).filter(m => a[m.id]).map(m => a[m.id + ":detail"] ? m : Object.assign({}, m, { stages: [], waves: [], tasks: [], nodetail: true }));
+  out.mechs = MECHS.filter(x => a[x.id]);
+  return out;
+}
+
+/* ───── 管理者:書き出す ───── */
+let exporting = false;
+async function ghPutStudy(path, obj, msg){ let cur = null; const g = await gh(path); if (g.ok) cur = (await g.json()).sha;
+  const r = await gh(path, { method: "PUT", body: { message: msg, content: b64enc(JSON.stringify(obj)), branch: conf.branch || "main", ...(cur ? { sha: cur } : {}) } }); if (!r.ok) throw new Error(path + " に書けない(" + r.status + ")"); }
+async function exportSys(){
+  if (!isAdmin() || !ownerConf || exporting) return false; exporting = true;
+  try {
+    const k = await ensureKeys(); sysSource = await buildSource(); sysSourceErr = "";
+    const used = new Set(S.members.map(m => m.preset).filter(Boolean)), grants = {};
+    for (const p of S.presets || []) {
+      if (!used.has(p.id)) continue;
+      const pk = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]), raw = await crypto.subtle.exportKey("raw", pk);
+      const box = await enc(pk, JSON.stringify(filterFor(sysSource, p.allow)));
+      await ghPutStudy("sys/" + p.id + ".json", { v: 1, at: Date.now(), ...box }, "体制:" + p.name);
+      for (const m of S.members.filter(x => x.preset === p.id)) {
+        const keys = []; for (const pub of m.pubs || []) { const sk = await shared(pub.jwk); keys.push({ kid: pub.kid, ...(await enc(sk, new Uint8Array(raw))) }); }
+        grants[m.id] = { preset: p.id, okid: k.kid, at: Date.now(), keys };
+      }
+    }
+    await mutate(D => { D.grants = grants; D.ownerPub = { kid: k.kid, jwk: k.pub }; D.sysAt = Date.now(); }, "体制の鍵");
+    toast("体制を最新にした"); return true;
+  } catch (e) { sysSourceErr = e.message; toast(e.message); return false; }
+  finally { exporting = false; }
+}
+
+/* ───── メンバー:読む ───── */
+let sysData = null, sysErr = "", sysLoading = false, sysTab = lsGet("study-systab", "intro"), sysPage = "home";
+const SL = lsGet("study-sys-local", { pins: [], quiz: {}, preds: [], chals: [], seen: [], draft: "" });   // 君だけのもの(この端末にだけ)
+const saveSL = () => lsSet("study-sys-local", SL);
+async function loadSysData(){
+  const g = (S.grants || {})[me()]; if (!g) { sysData = null; return; }
+  sysLoading = true; sysErr = "";
+  try { const k = await ensureKeys(), mine = (g.keys || []).find(x => x.kid === k.kid);
+    if (!mine) throw new Error("この端末ではまだ見られない。" + nameBy(S.admin) + "が次に「最新にする」を押すと見られるようになる");
+    if (!S.ownerPub || S.ownerPub.kid !== g.okid) throw new Error("鍵が古い。" + nameBy(S.admin) + "が次に「最新にする」を押すと直る");
+    const sk = await shared(S.ownerPub.jwk), raw = await dec(sk, mine, true), pk = await crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["decrypt"]);
+    const r = await gh("sys/" + g.preset + ".json"); if (!r.ok) throw new Error("体制のデータが読めない(" + r.status + ")");
+    const file = JSON.parse(b64dec((await r.json()).content)); sysData = JSON.parse(await dec(pk, file));
+  } catch (e) { sysErr = e.message; sysData = null; }
+  finally { sysLoading = false; }
+}
+
+/* ───── 体制の画面(メンバー) ───── */
+const fmt1 = n => (n > 0 ? "+" : "") + n;
+function sysChart(series){ if (!series || series.length < 2) return ""; const W = 600, H = 130, p = 10, min = Math.min(...series), max = Math.max(...series), span = (max - min) || 1;
+  const x = i => p + i * (W - 2 * p) / (series.length - 1), y = v => H - p - (v - min) * (H - 2 * p) / span, d = series.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" "), L = series.length - 1;
+  return '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="国力の推移"><path d="' + d + " L" + x(L) + " " + (H - p) + " L" + x(0) + " " + (H - p) + ' Z" fill="var(--ink)" opacity=".06"/><path d="' + d + '" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="' + x(L) + '" cy="' + y(series[L]) + '" r="4.5" fill="var(--shu)"/></svg>'; }
+const itemName = id => ({ power: "国力", breakdown: "国力の内訳", iishin: "威信", term: "作戦期", feats: "偉業" }[id] || ((sysData && (sysData.mins || []).find(m => m.id === id)) || {}).name || (MECHS.find(x => x.id === id) || {}).name || id);
+function pinBtn(id, mini, named){ const on = SL.pins.includes(id);
+  if (named) return '<button type="button" class="pin" data-pin="' + id + '" aria-pressed="' + on + '">📌 ' + esc(itemName(id)) + (on ? "(あとで書く)" : "について書きたい") + "</button>";
+  if (mini) return '<button type="button" class="pin pinsm" data-pin="' + id + '" aria-pressed="' + on + '" aria-label="' + esc(itemName(id)) + 'について書きたい">📌</button>';
+  return '<button type="button" class="pin" data-pin="' + id + '" aria-pressed="' + on + '">' + (on ? "📌 あとで書く" : "📌 ここについて書きたい") + "</button>"; }
+function newsLines(D){ const L = [];
+  if (D.power) L.push(D.power.diff >= 0 ? "国力、この1週間で <b>" + fmt1(D.power.diff) + "</b>。じわじわ上昇中" : "国力、この1週間で <b>" + D.power.diff + "</b>。立て直しの週か");
+  const M = D.mins || []; if (M.length) { const top = M.slice().sort((a, b) => b.wk - a.wk)[0], low = M.slice().sort((a, b) => a.wk - b.wk)[0]; if (top.wk > 0) L.push("<b>" + esc(top.name) + "</b>が今週いちばん伸びた(" + fmt1(top.wk) + ")"); if (low.wk < 0) L.push("<b>" + esc(low.name) + "</b>はちょっと失速(" + low.wk + ")"); }
+  if (D.feats) { const f = D.feats.find(x => x.st === "達成"); if (f) L.push("偉業「<b>" + esc(f.name) + "</b>」を達成"); }
+  return L; }
+function quizQs(D){ const M = D.mins || []; if (M.length < 2) return []; const o = M.map(m => m.name);
+  return [{ id: "strong", q: "いちばん強い省はどれだと思う?", opts: o, a: M.slice().sort((a, b) => b.power - a.power)[0].name }, { id: "grow", q: "今週いちばん伸びた省は?", opts: o, a: M.slice().sort((a, b) => b.wk - a.wk)[0].name }, { id: "weak", q: "いちばん苦戦してる省は?", opts: o, a: M.slice().sort((a, b) => a.power - b.power)[0].name }]; }
+function judgeChal(D, c){ if (c.res || Date.now() < c.dueAt) return; const cur = c.target === "power" ? (D.power || {}).last : ((D.mins || []).find(m => m.id === c.target) || {}).power;
+  if (cur == null) return; c.got = Math.round((cur - c.start) * 10) / 10; c.res = c.got >= c.n ? "win" : "lose"; saveSL(); }
+function predJudge(D){ (SL.preds || []).forEach(p => { if (p.result || !D.power || Date.now() < p.dueAt) return; p.result = D.power.last >= p.base ? "up" : "down"; }); saveSL(); }
+function playHtml(D){
+  const parts = [], F = D.flags || {};
+  if (F.news) { const N = newsLines(D); parts.push('<div class="sect"><h3>今週のニュース</h3>' + (N.length ? '<ul class="news">' + N.map(x => "<li>" + x + "</li>").join("") + "</ul>" : '<p class="empty">まだニュースにできる数字がない。</p>') + "</div>"); }
+  if (F.quiz) { const Q = quizQs(D); parts.push('<div class="sect"><h3>当ててみて<small>' + esc(D.owner) + "クイズ</small></h3>" + (Q.length ? Q.map(q => { const pick = SL.quiz[q.id];
+    return '<div class="q"><div class="qq">' + esc(q.q) + '</div><div class="opts">' + q.opts.map(o => '<button type="button" data-quiz="' + q.id + '" data-v="' + esc(o) + '"' + (pick ? " disabled" : "") + ' class="' + (pick ? (o === q.a ? "right" : o === pick ? "wrong" : "") : "") + '">' + esc(o) + "</button>").join("") + "</div>" + (pick ? '<div class="ans ' + (pick === q.a ? "up" : "down") + '">' + (pick === q.a ? "正解!" : "ざんねん、正解は " + esc(q.a)) + "</div>" : "") + "</div>"; }).join("") : '<p class="empty">省が2つ以上見えると遊べる。</p>') + "</div>"); }
+  if (F.pred && D.power) { predJudge(D); const cur = (SL.preds || []).find(p => !p.result), done = (SL.preds || []).filter(p => p.result), hit = done.filter(p => p.result === p.guess).length;
+    parts.push('<div class="sect"><h3>予想<small>1週間後の国力は?</small></h3><div class="lock"><span class="ic" aria-hidden="true">🔒</span><span>予想は君だけのもの。この端末にだけ残って、' + esc(D.owner) + 'には一切見えない。</span></div>' +
+      (cur ? '<p class="lead">予想した:<b>' + (cur.guess === "up" ? "上がる" : "下がる") + "</b>(今 " + cur.base + ")。結果は " + md(cur.dueAt) + " ごろ。</p>" : '<div class="bet"><button type="button" data-bet="up">上がる</button><button type="button" data-bet="down">下がる</button></div>') +
+      '<div class="rec">これまで <b>' + done.length + "</b> 回 ・ 的中 <b>" + hit + "</b> 回</div></div>"); }
+  if (F.chal) { const T = (D.power ? [{ id: "power", name: "国力", v: D.power.last }] : []).concat((D.mins || []).map(m => ({ id: m.id, name: m.name, v: m.power })));
+    (SL.chals || []).forEach(c => judgeChal(D, c));
+    parts.push('<div class="sect"><h3>挑戦状<small>伸びるかどうか、見守る</small></h3><div class="lock"><span class="ic" aria-hidden="true">🔒</span><span>挑戦状は君だけのもの。' + esc(D.owner) + 'には、あることも見えない。期限が来たら数字から自動で判定。</span></div>' +
+      (T.length ? '<div class="chal-form"><select id="chalt">' + T.map(t => '<option value="' + t.id + '">' + esc(t.name) + "</option>").join("") + '</select><select id="chaldue"><option value="3">3日</option><option value="7" selected>1週間</option><option value="14">2週間</option></select><span style="align-self:center">で</span><input id="chaln" type="number" step="0.1" min="0.1" value="3" style="flex:0 0 5em"><span style="align-self:center">以上伸びる</span><button type="button" class="btn sm" id="sendchal">挑戦状を作る</button></div>' : "") +
+      ((SL.chals || []).length ? '<div style="margin-top:.6rem">' + SL.chals.slice().reverse().map(c => { const st = c.res || "run"; return '<div class="req"><div class="top"><span class="pill c-' + (st === "run" ? "open" : st) + '">' + (st === "run" ? "見守り中" : st === "win" ? "達成" : "届かず") + "</span><span>" + esc(c.text) + '</span><span class="when">' + (st === "run" ? md(c.dueAt) + "まで" : "結果 " + fmt1(c.got)) + "</span></div></div>"; }).join("") + "</div>" : "") + "</div>"); }
+  return parts.join("");
+}
+function sysMinPage(D, m){
+  return '<div class="navrow"><button type="button" class="back" data-syspage="home">← 戻る</button></div><div class="sect min" style="--mc:' + m.color + '"><h3><span class="tm">' + esc(m.name) + '</span><small class="' + (m.wk > 0 ? "up" : m.wk < 0 ? "down" : "") + '">今週 ' + fmt1(m.wk) + '</small><span class="r val num">' + m.power + "</span></h3>" +
+    (m.purpose ? '<p class="purpose"><b>目的</b> ' + esc(m.purpose) + "</p>" : "") +
+    (m.nodetail ? '<p class="note" style="margin-top:.6rem">この省の中身は、まだ見せてない。</p>' :
+      (m.stages.length ? '<div class="sub-h">STAGE(長い道のり)</div><ol class="stages">' + m.stages.map(t => "<li>" + esc(t) + "</li>").join("") + "</ol>" : "") +
+      (m.waves.length ? '<div class="sub-h">WAVE(今の波)</div>' + m.waves.map(t => '<div class="wave" style="margin-bottom:.3rem">' + esc(t) + "</div>").join("") : "") +
+      (m.tasks.length ? '<div class="sub-h">毎日のタスク</div><div class="tasks">' + m.tasks.map(t => "<span>" + esc(t) + "</span>").join("") + "</div>" : "")) + pinBtn(m.id) + "</div>";
+}
+const STATUS = { new: "受付", doing: "対応中", done: "完了" };
+function myFb(){ return (S.fb || []).filter(x => x.from === me()); }
+let fbPlain = {};   // 復号した中身の控え(id → 文)
+async function decryptMine(){ const k = await ensureKeys(); for (const x of myFb()) { const key = x.id + (x.reply ? "r" : ""); if (fbPlain[key] != null) continue;
+  try { if (!S.ownerPub || x.okid !== S.ownerPub.kid || x.kid !== k.kid) { fbPlain[x.id] = "(この端末からは読めない)"; continue; } const sk = await shared(S.ownerPub.jwk); fbPlain[x.id] = await dec(sk, x); if (x.reply) fbPlain[x.id + "r"] = await dec(sk, x.reply); } catch (e) { fbPlain[x.id] = "(読めない)"; } } }
+function sysArea(){
+  const D = sysData;
+  if (sysLoading) return '<div class="sect"><p class="empty">読み込み中…</p></div>';
+  if (!D) return '<div class="sect"><p class="empty">' + esc(sysErr || "まだ見られない") + '</p><button type="button" class="btn ghost sm" id="sysreload">もう一度</button></div>';
+  if (sysPage !== "home") { const m = (D.mins || []).find(x => x.id === sysPage); if (m) return sysMinPage(D, m); sysPage = "home"; }
+  const M = D.mins || [], X = D.mechs || [], F = D.flags || {};
+  const P = {
+    intro: '<div class="sect manual"><h3>取扱説明書<small>体制</small></h3><h4>これは何</h4><p>' + esc(D.owner) + 'が、勉強とか生活の習慣を続けるために自分で作ってる仕組み。分野ごとに「省」に分けて、続けるほど「国力」っていう数字が上がる。</p>' +
+      '<h4>お願い</h4><p>外から見た正直な感想がほしい。褒めなくていいし、「要らなくない?」も大歓迎。</p><h4>使い方</h4><ol><li>上のタブで見たいところを選ぶ</li><li>気になったところは <b>📌</b> を押しておく</li><li><b>書く</b>で思ったことを送る</li><li>頼みたいことがあれば<b>依頼</b>へ</li></ol>' +
+      '<h4>出てくる言葉</h4><dl class="gloss"><dt>国力</dt><dd>毎日の行動を足し合わせた数字</dd><dt>省</dt><dd>分野ごとの担当</dd><dt>STAGE</dt><dd>省ごとの長い目標を段階に分けたもの</dd><dt>WAVE</dt><dd>今いちばん力を入れている短い作戦</dd><dt>作戦期</dt><dd>数か月ごとの区切りと、その期間の合言葉</dd><dt>偉業・威信</dt><dd>大きな目標と、達成で上がる信用のような数字</dd></dl>' +
+      '<h4>知っておいてほしいこと</h4><ul><li>この体制は、君にだけ見せてる。勉強の場のほかの人には見えない(鍵がかかっていて、君の端末でしか開けない)</li><li>書いた感想と依頼は、' + esc(D.owner) + 'にしか読めない</li><li>📌・予想・挑戦状は、この端末にだけ残る</li><li>中身は ' + md(D.at) + " 時点のもの</li></ul></div>",
+    play: playHtml(D),
+    power: (D.power ? '<div class="sect"><h3>国力<small>毎日の行動を足し合わせた数字</small></h3><div class="ptop"><div class="v num">' + D.power.last + '</div><div class="d ' + (D.power.diff >= 0 ? "up" : "down") + '">この1週間 ' + fmt1(D.power.diff) + '</div></div><div class="chart" style="margin-top:.4rem">' + sysChart(D.power.series) + "</div>" + pinBtn("power") + "</div>" : "") +
+      (D.breakdown ? '<div class="sect"><h3>国力の内訳</h3><div class="goal"><span>領土の広さ</span><span class="num">' + D.breakdown.land + '</span></div><div class="goal"><span>支配の深さ</span><span class="num">' + D.breakdown.depth + '</span></div><div class="note">広さ=手をつけている範囲、深さ=どれだけ続けられているか</div>' + pinBtn("breakdown") + "</div>" : "") +
+      (D.iishin ? '<div class="sect"><h3>威信</h3><div class="ptop"><div class="v num" style="font-size:1.6rem">' + D.iishin.value + '</div><div class="d">実績 ' + D.iishin.feat + " × 統治 " + D.iishin.gov + "% × 信用 " + D.iishin.trust + "%</div></div>" + pinBtn("iishin") + "</div>" : ""),
+    goal: '<div class="sect"><h3>目標</h3>' + (D.term ? '<div class="slogan">「' + esc(D.term.slogan) + '」</div><div class="note">' + esc(D.term.name) + (D.term.end ? " ・ " + esc(D.term.end) + "まで" : "") + "</div>" + D.term.goals.map(g => '<div class="goal"><span>' + esc(g.text) + '</span><span class="gbar"><span style="width:' + (g.target ? Math.min(100, g.now / g.target * 100) : 0) + '%"></span></span><span class="num">' + g.now + "/" + g.target + esc(g.unit) + "</span></div>").join("") : "") +
+      (D.feats ? '<div class="sub-h">偉業</div>' + D.feats.map(f => '<div class="feat"><span class="st ' + (f.st === "達成" ? "ok" : "on") + '">' + esc(f.st) + "</span><span>" + esc(f.name) + '</span><span class="due">' + (f.due ? esc(f.due) + "まで" : "") + "</span></div>").join("") : "") +
+      '<div class="pins">' + (D.term ? pinBtn("term", false, true) : "") + (D.feats ? pinBtn("feats", false, true) : "") + "</div></div>",
+    min: '<div class="sect"><h3>省<small>押すと中身が見られる</small></h3><div class="grid2">' + M.map(m => '<button type="button" class="tile" data-syspage="' + m.id + '" style="--mc:' + m.color + '"><div class="nm">' + esc(m.name) + (SL.pins.includes(m.id) ? '<span class="pinmark">📌</span>' : "") + '</div><div class="row2"><b class="num">' + m.power + '</b><small class="' + (m.wk > 0 ? "up" : m.wk < 0 ? "down" : "") + '">今週 ' + fmt1(m.wk) + "</small></div></button>").join("") + "</div></div>",
+    mech: '<div class="sect"><h3>仕組み</h3>' + MECH_GROUPS.filter(g => X.some(x => x.g === g)).map(g => '<div class="sub-h">' + esc(g) + "</div>" + X.filter(x => x.g === g).map(x => '<div class="mrow"><div class="t"><b>' + esc(x.name) + "</b>" + esc(x.text) + "</div>" + pinBtn(x.id, true) + "</div>").join("")).join("") + "</div>",
+    write: '<div class="sect write" id="write"><h3>思ったことを書く<small>' + esc(D.owner) + "にだけ届く</small></h3><textarea id=\"note\" placeholder=\"見て思ったことを、なんでも\">" + esc(SL.draft || "") + '</textarea><div class="count" id="count">' + (SL.draft || "").length + " 文字</div>" +
+      (SL.pins.length ? '<div class="hint">📌 した所</div><div class="chips">' + SL.pins.map(id => '<button type="button" class="p" data-ins="【' + esc(itemName(id)) + '】">' + esc(itemName(id)) + "</button>").join("") + "</div>" : "") +
+      '<div class="hint">書き出しのヒント</div><div class="chips">' + ["いちばん気になったのは、", "すごいと思ったのは、", "要らない気がするのは、", "分かりにくかったのは、", "続かなそうだと思ったのは、", "自分だったら、"].map(t => '<button type="button" data-ins="' + esc(t) + '">' + esc(t) + "</button>").join("") + '</div><div style="margin-top:.7rem"><button type="button" class="btn" id="sendnote">送る</button></div>' +
+      (myFb().filter(x => x.kind === "note").length ? '<div class="hint">送ったもの</div>' + myFb().filter(x => x.kind === "note").slice().reverse().map(x => '<div class="sent"><span class="d">' + md(x.at) + "</span>" + esc(fbPlain[x.id] || "…") + "</div>").join("") : "") + "</div>",
+    req: '<div class="sect"><h3>お返しの依頼箱<small>' + esc(D.owner) + "にだけ届く</small></h3><p class=\"lead\">見てくれたお礼に、こっちでできることがあったら書いて。</p><textarea id=\"reqtext\" placeholder=\"例:英単語覚えるのに使えるやつ欲しい\"></textarea><div style=\"margin-top:.5rem\"><button type=\"button\" class=\"btn sm\" id=\"sendreq\">頼む</button></div>" +
+      (myFb().filter(x => x.kind === "req").length ? '<div style="margin-top:.6rem">' + myFb().filter(x => x.kind === "req").slice().reverse().map(x => '<div class="req"><div class="top"><span class="pill ' + x.status + '">' + STATUS[x.status] + "</span><span>" + esc(fbPlain[x.id] || "…") + '</span><span class="when">' + md(x.at) + "</span></div>" + (x.reply ? '<div class="reply">返事:' + esc(fbPlain[x.id + "r"] || "…") + "</div>" : "") + "</div>").join("") + "</div>" : "") + "</div>"
+  };
+  const has = { intro: true, play: F.news || F.quiz || F.pred || F.chal, power: !!(D.power || D.breakdown || D.iishin), goal: !!(D.term || D.feats), min: M.length > 0, mech: X.length > 0, write: true, req: true };
+  if (!has[sysTab]) sysTab = "intro";
+  const TT = [["intro", "説明書"], ["play", "遊ぶ"], ["power", "国力"], ["goal", "目標"], ["min", "省"], ["mech", "仕組み"], ["write", "書く"], ["req", "依頼"]];
+  return '<nav class="tabs" style="top:calc(env(safe-area-inset-top,0px) + 3rem)" aria-label="体制">' + TT.filter(([k]) => has[k]).map(([k, l]) => '<button type="button" data-systab="' + k + '" aria-pressed="' + (sysTab === k) + '">' + l + (k === "write" && SL.pins.length ? '<span class="n">📌' + SL.pins.length + "</span>" : "") + "</button>").join("") + "</nav>" +
+    P[sysTab] + (sysTab !== "write" && sysTab !== "req" ? '<button type="button" class="towrite" data-systab="write">思ったことを書く欄へ</button>' : "");
+}
+
+/* ───── 管理者:体制の設定・見せ方・届いたもの ───── */
+let editPreset = null; const peek = new Set();
+let ownerPlain = {};
+async function decryptInbox(){ if (!isAdmin() || !S.ownerPub) return; const k = await ensureKeys(); if (S.ownerPub.kid !== k.kid) return;
+  for (const x of S.fb || []) { if (ownerPlain[x.id] != null) continue; const m = S.members.find(y => y.id === x.from), pub = m && (m.pubs || []).find(p => p.kid === x.kid);
+    try { if (!pub || x.okid !== k.kid) throw 0; const sk = await shared(pub.jwk); ownerPlain[x.id] = await dec(sk, x); } catch (e) { ownerPlain[x.id] = "(この端末からは読めない)"; } } }
+function pvOf(id){ const s = sysSource; if (!s) return '<span class="note">体制のデータをまだ読んでいない</span>';
+  if (id === "p:news") return "数字から自動で作る見出し(見せている数字だけを使う)"; if (id === "p:quiz") return "見せている省から作るクイズ"; if (id === "p:pred") return "1週間後の国力を予想。その人の端末にだけ残り、あなたには見えない"; if (id === "p:chal") return "伸びの挑戦を作って見守る。その人の端末にだけ残り、あなたには見えない";
+  if (id === "power") return s.power ? "国力 " + s.power.last + "(この1週間 " + fmt1(s.power.diff) + ")と30日のグラフ" : "データなし";
+  if (id === "breakdown") return s.breakdown ? "領土 " + s.breakdown.land + " ・ 支配 " + s.breakdown.depth : "データなし";
+  if (id === "iishin") return s.iishin ? "威信 " + s.iishin.value + "(実績 " + s.iishin.feat + " × 統治 " + s.iishin.gov + "% × 信用 " + s.iishin.trust + "%)" : "データなし";
+  if (id === "term") return s.term ? "「" + esc(s.term.slogan) + "」" + esc(s.term.name) + " ・ " + s.term.goals.map(g => esc(g.text) + " " + g.now + "/" + g.target).join("、") : "データなし";
+  if (id === "feats") return s.feats ? s.feats.map(f => esc(f.st) + " " + esc(f.name)).join("<br>") : "データなし";
+  const m = (s.mins || []).find(x => id === x.id || id === x.id + ":detail"); if (m) return id.endsWith(":detail") ? ("STAGE:" + (m.stages.map(esc).join(" / ") || "なし") + "<br>WAVE:" + (m.waves.map(esc).join(" / ") || "なし") + "<br>タスク:" + (m.tasks.map(esc).join("、") || "なし")) : esc(m.name) + " " + m.power + "(今週 " + fmt1(m.wk) + ")" + (m.purpose ? "<br>目的:" + esc(m.purpose) : "");
+  const x = MECHS.find(y => y.id === id); return x ? esc(x.text) : ""; }
+function presetPanel(p){
+  const a = p.allow || {}, ok = id => !!a[id], s = sysSource || { mins: [] };
+  const sw = (id, label, sub, dis) => '<div class="swrow"><button type="button" class="sw' + (sub ? " sub" : "") + '" data-allow="' + id + '" aria-pressed="' + ok(id) + '"' + (dis ? " disabled" : "") + '><span class="k" aria-hidden="true"></span>' + esc(label) + '</button><button type="button" class="peekbtn" data-peek="' + id + '" aria-expanded="' + peek.has(id) + '">' + (peek.has(id) ? "閉じる" : "中身を見る") + "</button></div>" +
+    (peek.has(id) ? '<div class="peek' + (ok(id) ? " on" : "") + '"' + (sub ? ' style="margin-left:2.9rem"' : "") + '><div class="pl">' + (ok(id) ? "このセットで見えている中身" : "入れると、これが見える") + "</div>" + pvOf(id) + "</div>" : "");
+  return '<div class="allow"><div class="g">遊び</div>' + sw("p:news", "今週のニュース") + sw("p:quiz", "当ててみて(クイズ)") + sw("p:pred", "予想") + sw("p:chal", "挑戦状") +
+    '<div class="g">数字</div>' + sw("power", "国力とグラフ") + sw("breakdown", "国力の内訳") + sw("iishin", "威信") + '<div class="g">目標</div>' + sw("term", "作戦期") + sw("feats", "偉業") +
+    '<div class="g">省</div>' + (s.mins.length ? s.mins.map(m => sw(m.id, m.name) + sw(m.id + ":detail", "中身も見せる", true, !ok(m.id))).join("") : '<p class="note">体制のデータを読むと、省が並ぶ</p>') +
+    MECH_GROUPS.map(g => '<div class="g">仕組み:' + esc(g) + "</div>" + MECHS.filter(x => x.g === g).map(x => sw(x.id, x.name)).join("")).join("") +
+    '</div><div class="allbtns"><button type="button" class="btn ghost sm" data-allowall="1">全部見せる</button><button type="button" class="btn ghost sm" data-allowall="0">全部隠す</button><button type="button" class="btn ghost sm" data-peekall="1">中身を全部ひらく</button><button type="button" class="btn ghost sm" data-peekall="0">中身を全部とじる</button></div>';
+}
+function adminSys(){
+  const k = lsGet(KEYS_KEY, null), mineKey = k && S.ownerPub && S.ownerPub.kid === k.kid;
+  const presets = S.presets || []; if (!editPreset && presets[0]) editPreset = presets[0].id; const p = presets.find(x => x.id === editPreset);
+  const inbox = (S.fb || []).slice().sort((a, b) => b.at - a.at);
+  return '<div class="sect"><h3>体制を見せる<small>あなたが選んだ人にだけ</small></h3>' +
+    (ownerConf ? '<p class="note" style="margin:0 0 .4rem">体制のデータ:' + esc(ownerConf.repo) + ' につないでいる(鍵はこの端末にだけある)</p>' : '<p class="lead">体制のデータがあるリポジトリと、読むための鍵を入れる。鍵はこの端末にだけ残り、ほかの人には渡らない。</p>') +
+    '<div class="chal-form"><input id="orepo" placeholder="ユーザー名/notion-daily" value="' + esc(ownerConf ? ownerConf.repo : "") + '" aria-label="体制のリポジトリ"><input id="otoken" type="password" placeholder="' + (ownerConf ? "(入れ直すときだけ)" : "読むための鍵") + '" aria-label="体制の鍵"><button type="button" class="btn ghost sm" id="oconnect">' + (ownerConf ? "入れ直す" : "つなぐ") + "</button></div>" +
+    (ownerConf ? '<div class="ctl"><button type="button" class="btn sm" id="sysexport"' + (exporting ? " disabled" : "") + ">" + (exporting ? "書き出し中…" : "最新にする") + '</button><button type="button" class="btn ghost sm" id="sysread">データを読み直す</button><span class="note">最後に書き出した:' + (S.sysAt ? ago(S.sysAt) : "まだ") + "</span></div>" : "") +
+    (sysSourceErr ? '<p class="err">' + esc(sysSourceErr) + "</p>" : "") +
+    (S.ownerPub && !mineKey ? '<p class="note">管理の鍵は別の端末にある。この端末で「最新にする」を押すと、管理の鍵がこの端末に移る(前の端末に届いた感想は、前の端末でしか読めない)。</p>' : "") +
+    '<p class="note" style="margin:.5rem 0 0">数字が変わったら「最新にする」を押す。開くたびに半日ごと自動でも最新にする。体制のデータは、見せる人の端末でしか開けない形で置かれる。</p></div>' +
+    '<div class="sect"><h3>見せる人</h3>' + (presets.length ? S.members.filter(m => m.id !== S.admin).map(m => '<div class="ctl" style="align-items:center"><b style="min-width:5em">' + esc(m.name) + '</b><select data-mpreset="' + m.id + '"><option value="">見せない(勉強の場だけ)</option>' + presets.map(x => '<option value="' + x.id + '"' + (m.preset === x.id ? " selected" : "") + ">" + esc(x.name) + "</option>").join("") + "</select>" + (m.preset && !(m.pubs || []).length ? '<span class="note">まだ端末の鍵がない(次に開いたときに作られる)</span>' : "") + "</div>").join("") || '<p class="empty">まだほかのメンバーがいない。</p>' : '<p class="empty">先に下で見せ方のセットを作る。</p>') + "</div>" +
+    '<div class="sect"><h3>見せ方のセット</h3><div class="tabs" style="position:static;border:0;margin:0;padding:0 0 .4rem">' + presets.map(x => '<button type="button" data-editp="' + x.id + '" aria-pressed="' + (x.id === editPreset) + '">' + esc(x.name) + "</button>").join("") + '<button type="button" id="newp">+ 新しいセット</button></div>' +
+      (p ? '<div class="chal-form"><input id="pname" value="' + esc(p.name) + '" aria-label="セットの名前"><button type="button" class="btn ghost sm" id="renamep">名前を変える</button></div><p class="note" style="margin:.3rem 0 .6rem">使っている人:' + (S.members.filter(m => m.preset === p.id).map(m => esc(m.name)).join("、") || "まだいない") + "。変えたら「最新にする」を押す。</p>" + presetPanel(p) : '<p class="empty">「+ 新しいセット」から作る。</p>') + "</div>" +
+    '<div class="sect"><h3>届いた感想・依頼<small>あなたにしか読めない</small></h3>' + (inbox.length ? inbox.map(x => '<div class="req"><div class="top"><span class="pill ' + (x.kind === "note" ? "done" : x.status) + '">' + (x.kind === "note" ? "感想" : STATUS[x.status]) + "</span><span>" + esc(ownerPlain[x.id] || "…") + '</span><span class="when">' + esc(nameBy(x.from)) + " ・ " + md(x.at) + "</span></div>" +
+      (x.kind === "req" ? '<div class="ctl">' + Object.entries(STATUS).map(([s1, l]) => '<button type="button" class="btn ' + (x.status === s1 ? "" : "ghost ") + 'sm" data-fbst="' + x.id + '" data-v="' + s1 + '">' + l + '</button>').join("") + '</div><div class="ctl"><input data-replyin="' + x.id + '" placeholder="返事(その人にだけ届く)" aria-label="返事"><button type="button" class="btn sm" data-reply="' + x.id + '">返事を送る</button></div>' : "") + "</div>").join("") : '<p class="empty">まだ届いてない。</p>') + "</div>";
+}
+
+/* ═════ 勉強会(だれでも開ける。予定に「参加する」を押して、時間になったら作業部屋で一緒に) ═════ */
+const evNow = e => Date.now() >= e.start && Date.now() < e.start + e.dur * 60000;
+const evSoon = e => e.start > Date.now() && e.start - Date.now() < 3 * 3600e3;
+function fmtWhen(t){ const d = new Date(t), w = "日月火水木金土"[d.getDay()]; return (d.getMonth() + 1) + "/" + d.getDate() + "(" + w + ") " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+function eventsHtml(){
+  const E = (S.events || []).filter(e => e.start + e.dur * 60000 > Date.now() - 3600e3).sort((a, b) => a.start - b.start);
+  const now = E.find(evNow);
+  const d0 = new Date(Date.now() + 864e5); d0.setHours(20, 0, 0, 0);
+  const dv = d0.getFullYear() + "-" + String(d0.getMonth() + 1).padStart(2, "0") + "-" + String(d0.getDate()).padStart(2, "0");
+  return (now ? '<div class="lock" style="border-left-color:var(--ok)"><span class="ic" aria-hidden="true">📣</span><span><b>' + esc(now.title) + '</b> が今やってる(' + esc(now.sub) + ")。" + (liveRoom()[me()] ? "参加中。" : '<button type="button" class="btn sm" data-evjoinroom="' + now.id + '" style="margin-left:.4rem">一緒に始める</button>') + "</span></div>" : "") +
+    '<div class="sect"><h3>勉強会<small>みんなで同じ時間に</small></h3>' +
+    (E.length ? E.map(e => { const go = (e.going || []).includes(me());
+      return '<div class="req"><div class="top"><span class="pill ' + (evNow(e) ? "doing" : "new") + '">' + (evNow(e) ? "開催中" : fmtWhen(e.start)) + "</span><span><b>" + esc(e.title) + "</b> " + esc(e.sub) + " ・ " + e.dur + '分</span><span class="when">' + (e.going || []).length + "人</span></div>" +
+        '<div class="note">' + esc(nameBy(e.by)) + "が開いた ・ 参加:" + ((e.going || []).map(x => esc(nameBy(x))).join("、") || "まだいない") + "</div>" +
+        '<div class="ctl"><button type="button" class="btn ' + (go ? "ghost " : "") + 'sm" data-evgo="' + e.id + '">' + (go ? "参加をやめる" : "参加する") + "</button>" + (e.by === me() ? '<button type="button" class="linkx" data-evdel="' + e.id + '">取り消す</button>' : "") + "</div></div>"; }).join("") : '<p class="empty">予定はまだない。</p>') +
+    '<div class="sub-h">勉強会を開く</div><div class="chal-form"><input id="evtitle" placeholder="名前(例:夜の数学会)" aria-label="勉強会の名前"><select id="evsub" aria-label="科目">' + ["なんでも"].concat(SUBJECTS).map(x => "<option>" + x + "</option>").join("") + "</select></div>" +
+    '<div class="chal-form"><input id="evdate" type="date" value="' + dv + '" aria-label="日にち"><input id="evtime" type="time" value="20:00" aria-label="時刻"><select id="evdur" aria-label="長さ"><option value="30">30分</option><option value="60" selected>60分</option><option value="90">90分</option><option value="120">120分</option></select><button type="button" class="btn sm" id="evopen">開く</button></div></div>';
+}
+
+/* ═════ まとめ(管理者だけ) ═════ */
+let sumRange = lsGet("study-sumrange", 7);
+const minsIn = (a, b, from, to) => Math.max(0, (Math.min(b, to) - Math.max(a, from)) / 60000);
+function sessions(from, to){   // 作業部屋の記録(終わったもの+今やっているもの)
+  const L = (S.room.log || []).map(x => ({ who: x.who, sub: x.sub, start: x.start, end: x.end }));
+  Object.entries(liveRoom()).forEach(([k, v]) => L.push({ who: k, sub: v.sub, start: v.start, end: Date.now() }));
+  return L.filter(x => x.end > from && x.start < to);
+}
+function summary(){
+  const to = Date.now(), from = sumRange === 1 ? dayStart() : to - sumRange * 864e5, SS = sessions(from, to);
+  const rows = S.members.map(m => {
+    const mine = SS.filter(x => x.who === m.id), bySub = {}; mine.forEach(x => { bySub[x.sub] = (bySub[x.sub] || 0) + minsIn(x.start, x.end, from, to); });
+    const total = Object.values(bySub).reduce((a, b) => a + b, 0);
+    const pr = S.probs.map(p => (p.res || {})[m.id]).filter(r => r && r.decided && (r.at || 0) >= from), prOk = pr.filter(r => r.ok).length;
+    const bk = (S.bookLog || []).filter(x => x.who === m.id && x.at >= from), bkOk = bk.filter(x => x.ok).length;
+    const qAsk = S.qs.filter(q => q.by === m.id && q.at >= from).length, qAns = S.qs.reduce((a, q) => a + q.ans.filter(x => x.by === m.id && x.at >= from).length, 0);
+    const bt = S.battles.filter(b => b.members.includes(m.id) && b.at >= from), btWin = bt.filter(b => b.state === "done" && (b.type === "reversi" ? b.winner === m.id : (() => { const r = b.results || {}; const best = b.members.filter(x => r[x]).sort((x, y) => r[y].score - r[x].score || r[x].ms - r[y].ms)[0]; return best === m.id; })())).length;
+    const days = new Set(mine.map(x => new Date(x.start).toDateString())).size;
+    return { m, total: Math.round(total), bySub, pr: pr.length, prOk, bk: bk.length, bkOk, qAsk, qAns, bt: bt.length, btWin, days, last: mine.length ? Math.max(...mine.map(x => x.end)) : 0 };
+  }).sort((a, b) => b.total - a.total);
+  // 日ごとの合計(グラフ)
+  const nd = sumRange === 1 ? 1 : sumRange, bars = [];
+  for (let i = nd - 1; i >= 0; i--) { const d = new Date(); d.setHours(0, 0, 0, 0); const s0 = d.getTime() - i * 864e5, e0 = s0 + 864e5; bars.push({ label: (new Date(s0).getMonth() + 1) + "/" + new Date(s0).getDate(), v: Math.round(SS.reduce((a, x) => a + minsIn(x.start, x.end, s0, Math.min(e0, to)), 0)) }); }
+  return { rows, bars, from };
+}
+function barsSvg(bars){ const W = 600, H = 120, p = 6, max = Math.max(30, ...bars.map(b => b.v)), bw = (W - 2 * p) / bars.length;
+  return '<svg viewBox="0 0 ' + W + " " + (H + 18) + '" role="img" aria-label="日ごとの勉強時間の合計">' + bars.map((b, i) => { const h = b.v / max * (H - 2 * p), x = p + i * bw;
+    return '<rect x="' + (x + bw * .15).toFixed(1) + '" y="' + (H - p - h).toFixed(1) + '" width="' + (bw * .7).toFixed(1) + '" height="' + h.toFixed(1) + '" rx="3" fill="var(--ink)" opacity="' + (i === bars.length - 1 ? 1 : .55) + '"><title>' + b.label + " " + b.v + "分</title></rect>" +
+      (bars.length <= 10 || i % Math.ceil(bars.length / 8) === 0 ? '<text x="' + (x + bw / 2).toFixed(1) + '" y="' + (H + 13) + '" text-anchor="middle" font-size="12" fill="var(--sub)">' + b.label + "</text>" : ""); }).join("") + "</svg>"; }
+const hm = n => n >= 60 ? Math.floor(n / 60) + "時間" + (n % 60 ? (n % 60) + "分" : "") : n + "分";
+function summaryTab(){
+  const { rows, bars } = summary(), all = rows.reduce((a, r) => a + r.total, 0), active = rows.filter(r => r.total > 0).length;
+  const subs = {}; rows.forEach(r => Object.entries(r.bySub).forEach(([k, v]) => { subs[k] = (subs[k] || 0) + v; }));
+  const E = (S.events || []).filter(e => e.start < Date.now() && e.start >= Date.now() - sumRange * 864e5).sort((a, b) => b.start - a.start);
+  return '<div class="sect"><h3>まとめ<small>あなただけに見える</small></h3><div class="plans" role="group" aria-label="期間">' + [[1, "今日"], [7, "この7日"], [30, "この30日"]].map(([v, l]) => '<button type="button" data-sumr="' + v + '" aria-pressed="' + (sumRange === v) + '">' + l + "</button>").join("") + "</div>" +
+      '<div class="today-sum" style="margin:.3rem 0 .5rem"><span>みんなの合計 <b>' + hm(all) + "</b></span><span>勉強した人 <b>" + active + " / " + rows.length + "人</b></span></div>" +
+      (sumRange > 1 ? '<div class="chart">' + barsSvg(bars) + "</div>" : "") +
+      (Object.keys(subs).length ? '<div class="sub-h">科目ごと</div><div class="tasks">' + Object.entries(subs).sort((a, b) => b[1] - a[1]).map(([k, v]) => "<span>" + esc(k) + " " + hm(Math.round(v)) + "</span>").join("") + "</div>" : "") + "</div>" +
+    '<div class="sect"><h3>メンバーごと</h3>' + rows.map(r => '<div class="req"><div class="top"><b>' + esc(r.m.name) + '</b><span class="when">' + (r.last ? "最後に勉強:" + ago(r.last) : "まだ記録なし") + "</span></div>" +
+      '<div class="today-sum" style="margin-top:.25rem"><span>勉強 <b>' + hm(r.total) + "</b>" + (sumRange > 1 ? "(" + r.days + "日)" : "") + "</span><span>問題 <b>" + r.prOk + "/" + r.pr + "</b></span><span>問題集 <b>" + r.bkOk + "/" + r.bk + "</b></span><span>質問 <b>" + r.qAsk + "</b> ・ 答え <b>" + r.qAns + "</b></span><span>勝負 <b>" + r.btWin + "勝/" + r.bt + "</b></span></div>" +
+      (Object.keys(r.bySub).length ? '<div class="tasks" style="margin-top:.35rem">' + Object.entries(r.bySub).sort((a, b) => b[1] - a[1]).map(([k, v]) => "<span>" + esc(k) + " " + hm(Math.round(v)) + "</span>").join("") + "</div>" : "") + "</div>").join("") + "</div>" +
+    '<div class="sect"><h3>勉強会ごと</h3>' + (E.length ? E.map(e => { const to = Math.min(Date.now(), e.start + e.dur * 60000), SS = sessions(e.start, to), who = {}; SS.forEach(x => { who[x.who] = (who[x.who] || 0) + minsIn(x.start, x.end, e.start, to); });
+      const came = Object.entries(who).filter(([, v]) => v > 0);
+      return '<div class="req"><div class="top"><span class="pill ' + (evNow(e) ? "doing" : "done") + '">' + (evNow(e) ? "開催中" : fmtWhen(e.start)) + "</span><span><b>" + esc(e.title) + "</b> " + esc(e.sub) + '</span><span class="when">来た ' + came.length + "/" + (e.going || []).length + "人</span></div>" +
+        '<div class="tasks" style="margin-top:.35rem">' + (came.length ? came.sort((a, b) => b[1] - a[1]).map(([k, v]) => "<span>" + esc(nameBy(k)) + " " + (v < 1 ? "1分未満" : hm(Math.round(v))) + "</span>").join("") : "<span>だれも来なかった</span>") +
+        (e.going || []).filter(x => !who[x]).map(x => '<span style="opacity:.6">' + esc(nameBy(x)) + (evNow(e) ? " まだ" : " 欠席") + "</span>").join("") + "</div></div>"; }).join("") : '<p class="empty">この期間の勉強会はない。</p>') + "</div>";
+}
+
+/* ═════ 全体 ═════ */
+function tabsList(){ const t = [["guide", "説明書"], ["room", "作業部屋"], ["battle", "勝負"], ["board", "質問板"], ["probs", "問題"], ["make", "出す"]];
+  if (!isAdmin() && (S.grants || {})[me()]) t.push(["sys", nameBy(S.admin) + "の体制"]); if (isAdmin()) { t.push(["sum", "まとめ"]); t.push(["admin", "管理"]); } return t; }
+function badge(k){
+  if (k === "room") { if ((S.events || []).some(evNow)) return '<span class="n">勉強会中</span>'; if ((S.events || []).some(e => evSoon(e) && (e.going || []).includes(me()))) return '<span class="n">もうすぐ</span>'; const n = Object.keys(liveRoom()).length; return n ? '<span class="n">●' + n + "</span>" : ""; }
+  if (k === "battle") { if (S.battles.some(myTurnRv)) return '<span class="n">君の番</span>'; if (S.battles.some(x => x.state === "open" && !x.members.includes(me()))) return '<span class="n">募集</span>'; return ""; }
+  if (k === "board") { const n = S.qs.filter(q => !q.solved && !q.ans.length).length; return n ? '<span class="n">' + n + "</span>" : ""; }
+  return "";
+}
+function render(){
+  const app = $("app");
+  if (!conf) { app.innerHTML = setupScreen(); return; }
+  if (!loaded) { app.innerHTML = '<div class="gate"><h1>読み込み中</h1>' + (loadErr ? '<p class="err">' + esc(loadErr) + '</p><div><button type="button" class="btn ghost sm" id="retry">もう一度</button> <button type="button" class="btn ghost sm" id="logout">設定をやり直す</button></div>' : "") + "</div>"; return; }
+  if (!me() || !S.members.some(m => m.id === me())) { app.innerHTML = joinScreen(); const f = $("jname"); if (f) f.focus(); return; }
+  setTimeout(showActiveTabs, 0);
+  const T = tabsList(); if (!T.some(([k]) => k === tab)) tab = "guide";
+  const P = { guide, room, battle: battles, board, probs: problems, make, admin: () => admin() + adminSys() + adminDevice(), sys: sysArea, sum: summaryTab };
+  app.innerHTML = '<div class="mast"><h1>' + (tab === "sys" ? esc(nameBy(S.admin)) + "の体制" : "勉強の場") + "</h1><small>" + esc(nameBy(me())) + "</small></div>" +
+    '<nav class="tabs" aria-label="勉強の場">' + T.map(([k, l]) => '<button type="button" data-tab="' + k + '" aria-pressed="' + (tab === k) + '">' + l + badge(k) + "</button>").join("") + "</nav>" + P[tab]();
+}
+async function afterTab(){
+  if (tab === "sys") { if (!sysData && !sysLoading) { render(); await loadSysData(); } await decryptMine(); keepY(); }
+  if (tab === "admin" && isAdmin()) { if (ownerConf && !sysSource) { try { sysSource = await buildSource(); sysSourceErr = ""; } catch (e) { sysSourceErr = e.message; } } await decryptInbox(); keepY(); }
+}
+function showActiveTabs(){ document.querySelectorAll("nav.tabs").forEach(n => { const b = n.querySelector('[aria-pressed="true"]'); if (b) n.scrollLeft = Math.max(0, b.offsetLeft - n.clientWidth / 2 + b.offsetWidth / 2); }); }
+const keepY = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
+async function refresh(){ if (!conf || busy || playing) return; const a = document.activeElement; if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA") && a.value) return;
+  try { await load(); loadErr = ""; if (tab === "sys") await decryptMine(); if (tab === "admin") await decryptInbox(); keepY(); } catch (e) { loadErr = e.message; if (!loaded) render(); } }
+
+/* ═════ 操作 ═════ */
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t) return; const d = t.dataset;
+  if (t.id === "setupgo") { const repo = $("srepo").value.trim(), token = $("stoken").value.trim(), branch = $("sbranch").value.trim() || "main";
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !token) { gateErr = "リポジトリ(ユーザー名/名前)と鍵を入れて"; render(); return; }
+    conf = { repo, token, branch, me: null }; try { await load(); } catch (x) { conf = null; gateErr = x.message; render(); return; } lsSet(CONF_KEY, conf); render(); return; }
+  if (t.id === "retry") { loadErr = ""; render(); try { await load(); } catch (x) { loadErr = x.message; } render(); return; }
+  if (t.id === "logout") { if (confirm("この端末から出る?(データは消えない。また招待リンクか合言葉で入れる)")) { localStorage.removeItem(CONF_KEY); conf = null; loaded = false; render(); } return; }
+  if (t.id === "joinbtn") { const n = $("jname").value.trim(), a = $("p1").value, b = $("p2").value;
+    if (!n) { gateErr = "名前を入れてね"; snd("error"); render(); return; } if (a.length < 4) { gateErr = "合言葉は4文字以上にしてね"; snd("error"); render(); return; } if (a !== b) { gateErr = "2つの合言葉が違う"; snd("error"); render(); return; }
+    const id = "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), salt = Math.random().toString(36).slice(2, 10), ph = await hash(a, salt), by = conf.from || null;
+    const okk = await mutate(D => { if (D.members.some(m => m.name === n)) { gateErr = "その名前はもう使われてる"; return false; } D.members.push({ id, name: n, salt, ph, by, at: Date.now() }); if (!D.admin) D.admin = id; }, "メンバー:" + n);
+    if (okk) { conf.me = id; delete conf.from; lsSet(CONF_KEY, conf); gateErr = ""; tab = "guide"; snd("open"); await publishMyKey(); } render(); return; }
+  if (t.id === "loginbtn") { const m = S.members.find(x => x.id === $("lname").value); if (!m) return;
+    if ((await hash($("lpass").value, m.salt)) === m.ph) { conf.me = m.id; lsSet(CONF_KEY, conf); gateErr = ""; snd("open"); await publishMyKey(); } else { gateErr = "合言葉が違う"; snd("error"); } render(); return; }
+  if (d.tab) { tab = d.tab; lsSet("study-tab", tab); viewing = null; playing = null; render(); window.scrollTo(0, 0); snd("tab"); afterTab(); return; }
+  if (t.id === "copylink") { const inp = $("invlink"); try { await navigator.clipboard.writeText(inp.value); toast("招待リンクをコピーした"); } catch (x) { inp.select(); } snd("save"); return; }
+  // 勉強会
+  if (t.id === "evopen") { const title = $("evtitle").value.trim() || "勉強会", sub = $("evsub").value, dv = $("evdate").value, tv = $("evtime").value, dur = +$("evdur").value;
+    const start = new Date(dv + "T" + (tv || "20:00")).getTime(); if (!dv || isNaN(start)) { toast("日にちと時刻を入れて"); return; } if (start + dur * 60000 < Date.now()) { toast("もう終わっている時間になってる"); return; }
+    if (await mutate(D => { D.events = (D.events || []).filter(e => e.start > Date.now() - 60 * 864e5); D.events.push({ id: "e" + Date.now().toString(36), by: me(), title, sub, start, dur, going: [me()], at: Date.now() }); }, "勉強会:" + title)) { snd("save"); toast("勉強会を開いた。みんなの作業部屋に出る"); } keepY(); return; }
+  if (d.evgo) { const id = d.evgo; let on = false; if (await mutate(D => { const e = (D.events || []).find(x => x.id === id); if (!e) return false; e.going = e.going || []; const i = e.going.indexOf(me()); if (i >= 0) e.going.splice(i, 1); else { e.going.push(me()); on = true; } }, "勉強会の参加")) snd(on ? "toggleOn" : "toggleOff"); keepY(); return; }
+  if (d.evdel) { if (confirm("この勉強会を取り消す?")) { await mutate(D => { D.events = (D.events || []).filter(x => !(x.id === d.evdel && x.by === me())); }, "勉強会を取り消す"); snd("remove"); keepY(); } return; }
+  if (d.evjoinroom) { const e = (S.events || []).find(x => x.id === d.evjoinroom), sub = e && e.sub !== "なんでも" ? e.sub : "その他";
+    if (await mutate(D => { D.room.on[me()] = { sub, what: e ? e.title : "", start: Date.now(), plan: e ? Math.max(1, Math.round((e.start + e.dur * 60000 - Date.now()) / 60000)) : 0 }; const ev = (D.events || []).find(x => x.id === d.evjoinroom); if (ev && !(ev.going || []).includes(me())) (ev.going = ev.going || []).push(me()); }, "勉強会に参加")) snd("open"); keepY(); return; }
+  if (d.sumr) { sumRange = +d.sumr; lsSet("study-sumrange", sumRange); snd("tab"); keepY(); return; }
+  // 作業部屋
+  if (d.plan !== undefined && d.plan !== "") { roomPlan = +d.plan; keepY(); return; }
+  if (t.id === "roomstart" || t.id === "roomjoin") { const join = t.id === "roomjoin", first = Object.values(liveRoom())[0], sub = join && first ? first.sub : $("roomsub").value, what = join ? "" : $("roomwhat").value.trim(), plan = join ? 0 : roomPlan;
+    if (await mutate(D => { D.room.on[me()] = { sub, what, start: Date.now(), plan }; }, "作業部屋:始める")) snd("open"); keepY(); return; }
+  if (t.id === "roomend") { if (await mutate(D => { const cur = D.room.on[me()]; if (!cur) return false; D.room.log.push({ who: me(), sub: cur.sub, start: cur.start, end: Date.now() }); delete D.room.on[me()]; D.room.log = D.room.log.filter(x => x.end > Date.now() - 60 * 864e5); }, "作業部屋:おわり")) snd("done"); keepY(); return; }
+  // 質問板
+  if (t.id === "sendq") { const v = $("qtext").value.trim(), sub = $("qsub").value; if (!v) { $("qtext").focus(); return; } if (await mutate(D => { D.qs.push({ id: "q" + Date.now().toString(36), by: me(), sub, text: v, at: Date.now(), solved: false, ans: [] }); }, "質問")) { snd("save"); } render(); return; }
+  if (d.openq) { openQ = openQ === d.openq ? null : d.openq; keepY(); return; }
+  if (d.ans) { const inp = document.querySelector('[data-ansin="' + d.ans + '"]'), v = inp && inp.value.trim(); if (!v) return; if (await mutate(D => { const q = D.qs.find(x => x.id === d.ans); if (!q) return false; q.ans.push({ by: me(), text: v, at: Date.now() }); }, "答え")) snd("save"); keepY(); return; }
+  if (d.solve) { if (await mutate(D => { const q = D.qs.find(x => x.id === d.solve); if (!q) return false; q.solved = true; }, "解決")) snd("done"); keepY(); return; }
+  // 問題
+  if (d.pans) { const id = d.pans, v = d.v; let okk = false; if (await mutate(D => { const p = D.probs.find(x => x.id === id); if (!p) return false; p.res = p.res || {}; if (p.res[me()]) return false; okk = v === p.a; p.res[me()] = { ans: v, ok: okk, decided: true, at: Date.now() }; }, "解答")) snd(okk ? "done" : "error"); keepY(); return; }
+  if (d.pshow) { const id = d.pshow; await mutate(D => { const p = D.probs.find(x => x.id === id); if (!p) return false; p.res = p.res || {}; if (p.res[me()]) return false; p.res[me()] = { ans: "", ok: false, decided: false }; }, "答えを見る"); keepY(); return; }
+  if (d.pself) { const id = d.pself, ok1 = d.v === "1"; if (await mutate(D => { const p = D.probs.find(x => x.id === id); if (!p) return false; p.res[me()] = { ans: "", ok: ok1, decided: true, at: Date.now() }; }, "丸つけ")) snd(ok1 ? "done" : "toggleOff"); keepY(); return; }
+  if (d.rand) { if (d.rand === "prob") { if (!S.probs.length) { toast("まだ問題がない"); return; } randPick = { kind: "prob", id: S.probs[Math.floor(Math.random() * S.probs.length)].id }; }
+    else { if (!S.books.length) { toast("まだ問題集が登録されてない"); return; } const b = S.books[Math.floor(Math.random() * S.books.length)]; randPick = { kind: "book", id: b.id, no: b.from + Math.floor(Math.random() * (b.to - b.from + 1)) }; } snd("open"); keepY(); return; }
+  if (d.bookdone !== undefined && d.bookdone !== "" && randPick) { const rp = randPick, ok1 = d.bookdone === "1"; if (await mutate(D => { D.bookLog.push({ who: me(), book: rp.id, no: rp.no, ok: ok1, at: Date.now() }); D.bookLog = D.bookLog.slice(-2000); }, "問題集")) snd(ok1 ? "done" : "toggleOff"); keepY(); return; }
+  // 出す
+  if (t.id === "sendp") { const q = $("pq").value.trim(), a = $("pa").value.trim(), sub = $("psub").value, ex = $("pex").value.trim(); if (!q || !a) { (q ? $("pa") : $("pq")).focus(); return; }
+    const ch = $("pc").value.split(/[、,]/).map(x => x.trim()).filter(Boolean); if (ch.length && !ch.includes(a)) ch.push(a);
+    if (await mutate(D => { D.probs.push({ id: "p" + Date.now().toString(36), by: me(), sub, q, a, choices: ch, ex, at: Date.now(), res: {} }); }, "問題")) { snd("save"); tab = "probs"; lsSet("study-tab", tab); } render(); window.scrollTo(0, 0); return; }
+  if (t.id === "drillp") { const A = 12 + Math.floor(Math.random() * 80), B = 11 + Math.floor(Math.random() * 30), ans = String(A * B), opts = [ans, String(A * B + 10), String(A * B - B), String(A * (B + 1))].sort(() => Math.random() - .5);
+    if (await mutate(D => { D.probs.push({ id: "p" + Date.now().toString(36), by: me(), sub: "数学", q: A + " × " + B + " を暗算で", a: ans, choices: opts, ex: A + " × " + (B - B % 10) + " + " + A + " × " + (B % 10) + " = " + ans, at: Date.now(), res: {} }); }, "計算の問題")) { snd("save"); tab = "probs"; lsSet("study-tab", tab); } render(); window.scrollTo(0, 0); return; }
+  if (t.id === "addbook") { const n = $("bname").value.trim(), f = +$("bfrom").value || 1, to = +$("bto").value || f, sub = $("bsub").value, kind = $("bkind").value.trim() || "No."; if (!n) { $("bname").focus(); return; }
+    if (await mutate(D => { D.books.push({ id: "b" + Date.now().toString(36), by: me(), sub, name: n, kind, from: Math.min(f, to), to: Math.max(f, to) }); }, "問題集:" + n)) snd("save"); keepY(); return; }
+  if (d.delbook) { if (confirm("この問題集を消す?")) { await mutate(D => { D.books = D.books.filter(x => !(x.id === d.delbook && x.by === me())); }, "問題集を消す"); keepY(); } return; }
+  // 勝負
+  if (t.id === "btopen") { const type = $("bttype").value, n = +$("btn").value, cap = type === "reversi" ? 2 : +$("btcap").value;
+    const b = type === "reversi" ? { id: "bt" + Date.now().toString(36), host: me(), type, n: 0, cap: 2, members: [me()], state: "open", board: rvNew(), turn: 1, results: {}, at: Date.now() } : { id: "bt" + Date.now().toString(36), host: me(), type, n, cap, members: [me()], state: "open", qs: makeQs(type, n), results: {}, at: Date.now() };
+    if (await mutate(D => { D.battles.push(b); D.battles = D.battles.filter(x => x.state !== "done" || x.at > Date.now() - 14 * 864e5); }, "勝負の募集")) snd("save"); keepY(); return; }
+  if (d.btjoin) { if (await mutate(D => { const b = D.battles.find(x => x.id === d.btjoin); if (!b || b.state !== "open" || b.members.includes(me())) return false; b.members.push(me()); if (b.members.length >= b.cap) b.state = "play"; }, "勝負に入る")) snd("open"); keepY(); return; }
+  if (d.btstart) { if (await mutate(D => { const b = D.battles.find(x => x.id === d.btstart); if (!b || b.state !== "open") return false; b.state = "play"; b.cap = b.members.length; }, "勝負を始める")) snd("open"); keepY(); return; }
+  if (d.btplay) { playing = { id: d.btplay, i: 0, start: Date.now(), score: 0 }; snd("open"); render(); window.scrollTo(0, 0); const i = $("btin"); if (i) i.focus(); return; }
+  if (d.btans !== undefined || t.id === "btsend") { const b = S.battles.find(x => x.id === playing.id), q = b.qs[playing.i], v = d.btans !== undefined ? d.btans : ($("btin").value || "").trim();
+    if (d.btans === undefined && !v) { $("btin").focus(); return; }
+    const right = v === q.a; if (right) playing.score++; snd(right ? "toggleOn" : "error"); playing.i++;
+    if (playing.i >= b.n) { const res = { score: playing.score, ms: Date.now() - playing.start }, id = playing.id; playing = null;
+      await mutate(D => { const bb = D.battles.find(x => x.id === id); if (!bb || bb.results[me()]) return false; bb.results[me()] = res; if (bb.members.every(m => bb.results[m])) bb.state = "done"; }, "勝負の結果"); snd("done"); render(); window.scrollTo(0, 0); return; }
+    render(); const i = $("btin"); if (i) i.focus(); return; }
+  if (d.openrv) { viewing = d.openrv; snd("open"); render(); window.scrollTo(0, 0); return; }
+  if (t.id === "closerv") { viewing = null; snd("tab"); render(); window.scrollTo(0, 0); return; }
+  if (d.rv !== undefined && d.rv !== "") { const i = +d.rv, id = viewing; let fin = false;
+    const okk = await mutate(D => { const b = D.battles.find(x => x.id === id); if (!b || b.state !== "play" || b.members.indexOf(me()) + 1 !== b.turn) { toast("もう相手の番になってる"); return false; }
+      const c = b.turn, f = rvFlips(b.board, i, c); if (!f.length) return false; b.board[i] = c; f.forEach(k => { b.board[k] = c; }); b.last = i; b.passNote = "";
+      const o = 3 - c; if (rvMoves(b.board, o).length) b.turn = o; else if (rvMoves(b.board, c).length) { b.turn = c; b.passNote = nameBy(b.members[o - 1]) + "は打てるところがないのでパス。"; }
+      else { b.state = "done"; fin = true; const [nb, nw] = rvCount(b.board); b.winner = nb === nw ? null : b.members[nb > nw ? 0 : 1]; } }, "リバーシ");
+    if (okk) snd(fin ? "done" : "toggleOn"); keepY(); return; }
+  // 体制(メンバー)
+  if (d.systab) { sysTab = d.systab; lsSet("study-systab", sysTab); if (!SL.seen.includes(sysTab)) { SL.seen.push(sysTab); saveSL(); } sysPage = "home"; render(); window.scrollTo(0, 0); snd("tab"); return; }
+  if (d.syspage) { sysPage = d.syspage; render(); window.scrollTo(0, 0); snd(sysPage === "home" ? "tab" : "open"); return; }
+  if (t.id === "sysreload") { sysData = null; await afterTab(); return; }
+  if (d.pin) { const i = SL.pins.indexOf(d.pin); if (i >= 0) SL.pins.splice(i, 1); else SL.pins.push(d.pin); saveSL(); snd(i >= 0 ? "toggleOff" : "toggleOn"); keepY(); return; }
+  if (d.ins) { const ta = $("note"); if (!ta) return; const st = ta.selectionStart ?? ta.value.length, en = ta.selectionEnd ?? st, pre = ta.value.slice(0, st), add = (pre && !/\n$/.test(pre) && !t.classList.contains("p") ? "\n" : "") + d.ins;
+    ta.value = pre + add + ta.value.slice(en); const pos = (pre + add).length; ta.focus(); ta.setSelectionRange(pos, pos); SL.draft = ta.value; saveSL(); $("count").textContent = ta.value.length + " 文字"; snd("tab"); return; }
+  if (t.id === "sendnote" || t.id === "sendreq") { const kind = t.id === "sendnote" ? "note" : "req", ta = $(kind === "note" ? "note" : "reqtext"), v = ta.value.trim(); if (!v) { ta.focus(); return; }
+    if (!S.ownerPub) { toast("まだ送れない(" + nameBy(S.admin) + "が体制を最新にすると送れる)"); return; }
+    const k = await ensureKeys(), sk = await shared(S.ownerPub.jwk), box = await enc(sk, v), id = "f" + Date.now().toString(36), okid = S.ownerPub.kid;
+    if (await mutate(D => { D.fb.push({ id, from: me(), kind, kid: k.kid, okid, at: Date.now(), status: "new", ...box }); }, kind === "note" ? "感想" : "依頼")) { fbPlain[id] = v; if (kind === "note") { SL.draft = ""; saveSL(); } snd("save"); toast(nameBy(S.admin) + "にだけ届いた"); } render(); return; }
+  if (d.quiz) { const q = quizQs(sysData).find(x => x.id === d.quiz); if (!q || SL.quiz[q.id]) return; SL.quiz[q.id] = d.v; saveSL(); snd(d.v === q.a ? "done" : "error"); keepY(); return; }
+  if (d.bet) { if ((SL.preds || []).some(p => !p.result) || !sysData.power) return; SL.preds.push({ guess: d.bet, base: sysData.power.last, at: Date.now(), dueAt: Date.now() + 7 * 864e5, result: null }); saveSL(); snd("save"); keepY(); return; }
+  if (t.id === "sendchal") { const tid = $("chalt").value, n = Math.max(0.1, +$("chaln").value || 1), days = +$("chaldue").value, T = tid === "power" ? { name: "国力", v: sysData.power.last } : (() => { const m = sysData.mins.find(x => x.id === tid); return { name: m.name, v: m.power }; })();
+    SL.chals.push({ id: "c" + Date.now(), target: tid, n, start: T.v, dueAt: Date.now() + days * 864e5, text: (days === 7 ? "1週間" : days === 14 ? "2週間" : days + "日") + "で" + T.name + "を+" + n + "以上" }); saveSL(); snd("save"); keepY(); return; }
+  // 体制(管理者)
+  if (t.id === "oconnect") { const repo = $("orepo").value.trim(), token = $("otoken").value.trim() || (ownerConf && ownerConf.token); if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !token) { toast("リポジトリと鍵を入れて"); return; }
+    ownerConf = { repo, token, branch: "main" }; lsSet(OWNER_CONF_KEY, ownerConf); try { sysSource = await buildSource(); sysSourceErr = ""; toast("体制のデータを読んだ"); } catch (e) { sysSourceErr = e.message; } snd("save"); keepY(); return; }
+  if (t.id === "sysread") { try { sysSource = await buildSource(); sysSourceErr = ""; toast("読み直した"); } catch (e) { sysSourceErr = e.message; } keepY(); return; }
+  if (t.id === "sysexport") { keepY(); const okk = await exportSys(); if (okk) snd("done"); keepY(); return; }
+  if (d.editp) { editPreset = d.editp; peek.clear(); keepY(); return; }
+  if (t.id === "newp") { const id = "p" + Date.now().toString(36); if (await mutate(D => { D.presets = D.presets || []; D.presets.push({ id, name: "新しいセット", allow: {} }); }, "見せ方のセット")) { editPreset = id; snd("save"); } keepY(); return; }
+  if (t.id === "renamep") { const v = $("pname").value.trim(), id = editPreset; if (v && await mutate(D => { const p1 = (D.presets || []).find(x => x.id === id); if (!p1) return false; p1.name = v; }, "セットの名前")) snd("save"); keepY(); return; }
+  if (d.allow) { const id = d.allow, pid = editPreset; let on = false; if (await mutate(D => { const p1 = (D.presets || []).find(x => x.id === pid); if (!p1) return false; p1.allow = p1.allow || {}; p1.allow[id] = !p1.allow[id]; on = p1.allow[id]; if (!on && !id.includes(":detail")) delete p1.allow[id + ":detail"]; }, "見せ方")) snd(on ? "toggleOn" : "toggleOff"); keepY(); return; }
+  if (d.allowall) { const pid = editPreset, all = d.allowall === "1", ids = sysSource ? ALLOW_IDS(sysSource) : []; if (await mutate(D => { const p1 = (D.presets || []).find(x => x.id === pid); if (!p1) return false; p1.allow = all ? Object.fromEntries(ids.map(i => [i, true])) : {}; }, "見せ方")) snd(all ? "toggleOn" : "toggleOff"); keepY(); return; }
+  if (d.peek) { peek.has(d.peek) ? peek.delete(d.peek) : peek.add(d.peek); snd("tab"); keepY(); return; }
+  if (d.peekall) { peek.clear(); if (d.peekall === "1" && sysSource) ALLOW_IDS(sysSource).forEach(i => peek.add(i)); snd("tab"); keepY(); return; }
+  if (d.fbst) { const id = d.fbst, v = d.v; if (await mutate(D => { const x = (D.fb || []).find(y => y.id === id); if (!x) return false; x.status = v; }, "依頼の進み")) snd("toggleOn"); keepY(); return; }
+  if (d.reply) { const id = d.reply, inp = document.querySelector('[data-replyin="' + id + '"]'), v = inp && inp.value.trim(); if (!v) return; const x = (S.fb || []).find(y => y.id === id), m = S.members.find(y => y.id === x.from), pub = m && (m.pubs || []).find(p1 => p1.kid === x.kid);
+    if (!pub) { toast("この人の端末の鍵がない"); return; } const box = await enc(await shared(pub.jwk), v); if (await mutate(D => { const y = (D.fb || []).find(z => z.id === id); if (!y) return false; y.reply = box; if (y.status === "new") y.status = "doing"; }, "依頼の返事")) { snd("save"); toast("返事を送った"); } keepY(); return; }
+  // 管理
+  if (d.delm) { const m = S.members.find(x => x.id === d.delm); if (m && confirm(m.name + "をメンバーから外す?")) { await mutate(D => { if (!isAdmin()) return false; D.members = D.members.filter(x => x.id !== m.id); }, "メンバーを外す"); snd("remove"); keepY(); } return; }
+});
+document.addEventListener("change", async e => {
+  const t = e.target; if (t.dataset && t.dataset.mpreset) { const mid = t.dataset.mpreset, v = t.value || null; if (await mutate(D => { const m = D.members.find(x => x.id === mid); if (!m) return false; m.preset = v; }, "見せる人")) { snd(v ? "toggleOn" : "toggleOff"); toast("変えた。「最新にする」を押すと反映される"); } keepY(); }
+});
+document.addEventListener("input", e => { if (e.target.id === "note") { SL.draft = e.target.value; saveSL(); const c = $("count"); if (c) c.textContent = e.target.value.length + " 文字"; } });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  if (e.target.id === "btin") { const b = $("btsend"); if (b) b.click(); }
+  if (["p1", "p2", "jname"].includes(e.target.id)) { const b = $("joinbtn"); if (b) b.click(); }
+  if (e.target.id === "lpass") { const b = $("loginbtn"); if (b) b.click(); }
+  if (e.target.id === "stoken") { const b = $("setupgo"); if (b) b.click(); }
+});
+setInterval(() => { document.querySelectorAll("[data-since]").forEach(el => { el.textContent = mins(+el.dataset.since) + "分"; }); }, 30000);
+setInterval(() => { document.querySelectorAll("[data-since-ms]").forEach(el => { el.textContent = "挑戦中 " + ((Date.now() - +el.dataset.sinceMs) / 1000).toFixed(1) + "秒"; }); }, 100);
+setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 45000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
+
+/* ═════ 起動:招待リンクの鍵を受け取る ═════ */
+(async function boot(){
+  const m = /#k=([A-Za-z0-9+/_-]+)/.exec(location.hash);
+  if (m) { try { const j = JSON.parse(atob(m[1].replace(/-/g, "+").replace(/_/g, "/"))); const keep = conf && conf.repo === j.r ? conf.me : null; conf = { repo: j.r, token: j.t, branch: j.b || "main", me: keep, from: j.f || null }; lsSet(CONF_KEY, conf); } catch (e) { toast("招待リンクが読めない"); }
+    try { history.replaceState(null, "", location.pathname); } catch (e) {} }
+  render();
+  if (conf) { try { await load(); loadErr = ""; } catch (e) { loadErr = e.message; } render();
+    if (loaded && me() && S.members.some(m => m.id === me())) { await publishMyKey(); if (isAdmin() && ownerConf && Date.now() - (S.sysAt || 0) > 12 * 3600e3 && (S.presets || []).length) await exportSys(); render(); afterTab(); } }
+  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("./sw.js").catch(() => {});
+})();
+
+</script>
+<script>
+
+/* 効果音(国力年報・省・行軍表などと同じ音。入/切と音量は共通) */
+
+// ───────── 効果音(ブラウザの中で音を合成。音のファイルは使わない)─────────
+// 設定(入/切・音量)は 3つのアプリで共通(localStorage の se-on / se-vol)
+const SE = (() => {
+  let ctx = null, master = null, lastTap = 0, lastErr = 0;
+  const ls = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } };
+  let on = ls("se-on", "1") !== "0", vol = Math.max(0, Math.min(1, +ls("se-vol", "0.5")));
+  function ac(){
+    if (!on) return null;
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+    if (!ctx) { ctx = new AC(); master = ctx.createGain(); master.connect(ctx.destination); }
+    if (ctx.state === "suspended") ctx.resume();
+    master.gain.value = vol * 0.9;
+    return ctx;
+  }
+  // 1つの音:周波数 f(滑らせるなら f2)、始まり t、長さ d、波の形、大きさ g
+  function note(c, f, t, d, o){
+    o = o || {};
+    const osc = c.createOscillator(), gn = c.createGain(), t0 = c.currentTime + (t || 0);
+    osc.type = o.type || "sine"; osc.frequency.setValueAtTime(f, t0);
+    if (o.f2) osc.frequency.exponentialRampToValueAtTime(o.f2, t0 + d);
+    const g = o.g == null ? 0.2 : o.g, a = o.a == null ? 0.005 : o.a;
+    gn.gain.setValueAtTime(0.0001, t0); gn.gain.exponentialRampToValueAtTime(g, t0 + a);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    let last = gn;
+    if (o.lp) { const fl = c.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = o.lp; gn.connect(fl); last = fl; }
+    osc.connect(gn); last.connect(master); osc.start(t0); osc.stop(t0 + d + 0.05);
+  }
+  // 鐘のような音(基音 + 倍音)
+  const bell = (c, f, t, d, g) => { note(c, f, t, d, { g: g }); note(c, f * 2, t, d * 0.6, { g: g * 0.35 }); note(c, f * 3.01, t, d * 0.3, { g: g * 0.12 }); };
+  // ざわめき(風・波)
+  function noise(c, t, d, o){
+    o = o || {};
+    const n = Math.floor(c.sampleRate * d), buf = c.createBuffer(1, n, c.sampleRate), ch = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) ch[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource(), fl = c.createBiquadFilter(), gn = c.createGain(), t0 = c.currentTime + (t || 0);
+    src.buffer = buf; fl.type = o.type || "lowpass"; fl.Q.value = o.q || 0.7;
+    fl.frequency.setValueAtTime(o.f || 400, t0); if (o.f2) fl.frequency.exponentialRampToValueAtTime(o.f2, t0 + d * 0.8);
+    const g = o.g || 0.08;
+    gn.gain.setValueAtTime(0.0001, t0); gn.gain.exponentialRampToValueAtTime(g, t0 + d * 0.35); gn.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    src.connect(fl); fl.connect(gn); gn.connect(master); src.start(t0); src.stop(t0 + d + 0.05);
+  }
+  const lib = {
+    tap: c => note(c, 880, 0, 0.05, { f2: 660, g: 0.05 }),
+    tab: c => { note(c, 520, 0, 0.07, { type: "triangle", g: 0.07 }); note(c, 780, 0.03, 0.06, { type: "triangle", g: 0.04 }); },
+    toggleOn: c => note(c, 600, 0, 0.08, { f2: 1150, g: 0.08 }),
+    toggleOff: c => note(c, 900, 0, 0.08, { f2: 480, g: 0.06 }),
+    done: c => { bell(c, 1046.5, 0, 0.45, 0.11); bell(c, 1318.5, 0.08, 0.6, 0.11); },
+    save: c => { bell(c, 784, 0, 0.35, 0.08); bell(c, 1174.7, 0.01, 0.4, 0.06); },
+    remove: c => note(c, 520, 0, 0.14, { f2: 240, type: "triangle", g: 0.08 }),
+    error: c => { note(c, 220, 0, 0.09, { type: "square", g: 0.05, lp: 900 }); note(c, 196, 0.12, 0.12, { type: "square", g: 0.05, lp: 900 }); },
+    open: c => noise(c, 0, 0.18, { f: 300, f2: 2400, type: "bandpass", q: 1.2, g: 0.05 }),
+    fanfare: c => { [523.25, 659.25, 783.99].forEach((f, i) => { note(c, f, i * 0.09, 0.3, { type: "triangle", g: 0.12 }); note(c, f * 2, i * 0.09, 0.2, { g: 0.03 }); });
+      bell(c, 1046.5, 0.27, 1.1, 0.13); note(c, 523.25, 0.27, 1.0, { type: "triangle", g: 0.06 });
+      [2093, 2637, 3136, 2637].forEach((f, i) => note(c, f, 0.45 + i * 0.07, 0.25, { g: 0.025 })); },
+    levelup: c => { note(c, 600, 0, 0.5, { f2: 1600, type: "triangle", g: 0.08 }); [1568, 1975.5, 2349.3, 3136].forEach((f, i) => bell(c, f, 0.35 + i * 0.06, 0.4, 0.04)); },
+    issue: c => { [392, 523.25, 659.25, 783.99].forEach((f, i) => note(c, f, i * 0.12, i === 3 ? 0.9 : 0.22, { type: "sawtooth", g: 0.07, lp: 1800, a: 0.02 }));
+      note(c, 196, 0.36, 0.9, { type: "sawtooth", g: 0.04, lp: 700, a: 0.03 }); },
+    swell: c => { noise(c, 0, 0.9, { f: 200, f2: 1400, g: 0.05 }); [440, 554.4, 659.3].forEach(f => note(c, f, 0.05, 0.9, { g: 0.035, a: 0.35 })); },
+    unswell: c => { noise(c, 0, 0.6, { f: 1200, f2: 250, g: 0.04 }); note(c, 554.4, 0, 0.5, { f2: 440, g: 0.04, a: 0.1 }); },
+    pluck: c => { note(c, 880, 0, 0.35, { type: "triangle", g: 0.09, a: 0.002 }); note(c, 1318.5, 0.05, 0.4, { type: "triangle", g: 0.06, a: 0.002 }); },
+    link: c => { note(c, 659.3, 0, 0.25, { type: "triangle", g: 0.08, a: 0.002 }); note(c, 987.8, 0.09, 0.35, { type: "triangle", g: 0.08, a: 0.002 }); },
+    lock: c => { note(c, 180, 0, 0.06, { type: "square", g: 0.05, lp: 1200 }); note(c, 120, 0.05, 0.08, { type: "square", g: 0.05, lp: 900 }); },
+    unlock: c => { note(c, 160, 0, 0.05, { type: "square", g: 0.05, lp: 1200 }); bell(c, 1318.5, 0.08, 0.45, 0.07); },
+    send: c => noise(c, 0, 0.25, { f: 2400, f2: 400, type: "bandpass", q: 1.5, g: 0.06 }),
+    down: c => { note(c, 660, 0, 0.25, { f2: 440, type: "triangle", g: 0.07 }); },
+  };
+  function play(name, opt){
+    try {
+      const c = ac(); if (!c || !lib[name]) return;
+      if (name === "tap" || name === "tab") { const now = Date.now(); if (now - lastTap < 45) return; lastTap = now; }
+      if (name === "error") { const now = Date.now(); if (now - lastErr < 500) return; lastErr = now; }
+      lib[name](c, opt);
+    } catch (e) {}
+  }
+  // 場面の見分け:アプリごとの [選び方, 音] の並び(上から順に見る)
+  let rules = [];
+  function soundFor(el){
+    for (const [sel, snd] of rules) { const hit = el.closest(sel); if (hit) return typeof snd === "function" ? snd(hit) : snd; }
+    const inp = el.closest("input");
+    if (inp && (inp.type === "checkbox" || inp.type === "radio")) return inp.checked ? "toggleOn" : "toggleOff";
+    if (el.closest("nav button, [role=tab], .tabs button")) return "tab";
+    if (el.closest("button, a[href], summary, .chip-b, [data-v]")) return "tap";
+    return null;
+  }
+  function init(appRules){
+    rules = appRules || [];
+    document.addEventListener("click", e => { const s = e.target && e.target.closest ? soundFor(e.target) : null; if (s) play(s); }, true);
+    // エラーの表示(class="err")が出たら、低い音
+    try {
+      new MutationObserver(ms => { for (const m of ms) { const el = m.target.nodeType === 1 ? m.target : m.target.parentElement; if (!el || !el.closest) continue;
+        const er = el.closest(".err"); if (er && (er.textContent || "").trim()) { play("error"); break; } } })
+        .observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["class"] });
+    } catch (e) {}
+  }
+  // 設定の欄(入/切・音量)。アプリの版の表示のそばに置く
+  function mount(anchor){
+    if (!anchor || document.getElementById("se-row")) return;
+    const row = document.createElement("div"); row.id = "se-row"; row.className = "se-row";
+    row.innerHTML = '<span>効果音</span><button type="button" id="se-on" class="se-btn"></button><label class="se-vol">音量 <input id="se-vol" type="range" min="0" max="1" step="0.05"></label>';
+    anchor.parentNode.insertBefore(row, anchor.nextSibling);
+    const b = row.querySelector("#se-on"), r = row.querySelector("#se-vol");
+    const show = () => { b.textContent = on ? "入" : "切"; b.setAttribute("aria-pressed", String(on)); r.value = vol; r.disabled = !on; };
+    b.addEventListener("click", () => { on = !on; try { localStorage.setItem("se-on", on ? "1" : "0"); } catch (e) {} show(); if (on) play("toggleOn"); });
+    r.addEventListener("input", () => { vol = +r.value; try { localStorage.setItem("se-vol", String(vol)); } catch (e) {} });
+    r.addEventListener("change", () => play("done"));
+    show();
+  }
+  return { play, init, mount, soundFor, get on(){ return on; } };
+})();
+
+
+SE.init([]);
+SE.mount(document.getElementById("se-anchor"));
+</script>
+</body>
+</html>
