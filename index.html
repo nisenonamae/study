@@ -337,7 +337,7 @@ textarea{ width:100%; min-height:5em; padding:.6rem .7rem; border:1px solid var(
 /* ═══════════ 勉強の場(本番) ═══════════
    データは非公開リポジトリの study.json に保存。鍵は招待リンクの # の後ろに入っていて、ページ本体には書かない。
    リアルタイムではない:45秒ごとに読み直す。書き込むときは、最新を読んでから書く(ぶつかったら読み直して書き直す) */
-const APP_VERSION = "2026-10-25 s8";
+const APP_VERSION = "2026-10-25 s10";
 const SUBJECTS = ["数学", "英語", "国語", "理科", "社会", "その他"];
 const CONF_KEY = "study-conf";
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
@@ -405,10 +405,14 @@ const myKid = () => (lsGet("study-keys", null) || {}).kid;
 const adminKids = () => { const a = S.members.find(m => m.id === S.admin); return ((a && a.pubs) || []).map(p => p.kid).concat(S.ownerPub ? [S.ownerPub.kid] : []); };
 const deviceBanned = () => { const k = myKid(); return !!k && !isAdmin() && !adminKids().includes(k) && (S.bannedKids || []).includes(k); };
 const liveMembers = () => S.members.filter(m => !m.banned);
+const PASS_KEY = "study-pass";   // 自分の合言葉。この端末の中にだけ置く(GitHubには送らない)
+const rememberPass = (id, pass) => lsSet(PASS_KEY, { id, pass });
+const myPass = () => { const v = lsGet(PASS_KEY, null); return v && v.id === me() ? v.pass : null; };
 const snd = n => { if (window.SE) SE.play(n); };
 function toast(t){ const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => { el.hidden = true; }, 3200); }
 
 /* ───── 画面の状態 ───── */
+let passShown = false;
 let tab = lsGet("study-tab", "guide"), gateErr = "", openQ = null, randPick = null, roomPlan = 50, playing = null, viewing = null;
 const mins = t => Math.max(0, Math.floor((Date.now() - t) / 60000));
 const dayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -442,7 +446,13 @@ function guide(){
     '<h4>ここにいる人</h4><div class="tasks">' + liveMembers().map(m => "<span>" + esc(m.name) + "</span>").join("") + "</div>" +
     '<h4>友達を呼ぶ</h4><p>このリンクを送れば、だれでも入れる。</p><div class="chal-form"><input id="invlink" readonly value="' + esc(inviteLink()) + '" aria-label="招待リンク"><button type="button" class="btn sm" id="copylink">コピー</button></div>' +
     '<p class="note" style="margin:.35rem 0 0">送るときの例:「勉強の質問とか問題を出し合う場所。よかったら入って」</p>' +
-    '<h4>知っておいてほしいこと</h4><ul><li>書いたものは、ここにいる人全員に見える</li><li>勉強の記録(作業部屋の時間・解いた問題・勝負など)は、管理者の' + esc(nameBy(S.admin)) + 'がまとめて見られる。みんなで続けるために使う</li><li>招待リンクを知っている人なら、だれでも入れる。知らない人には送らないで</li><li>合言葉は自分だけのもの。ほかの人は君として入れない</li><li>人を困らせる使い方をした人は、管理者が<b>追放</b>できる。追放されると、その端末から入れなくなり、書いたものもみんなの画面から見えなくなる。管理者は追放を解除することもできる</li></ul></div>';
+    '<h4>スマホとパソコンなど、2台以上で使う</h4><p>同じアカウントのまま、ほかの端末でも使える。</p>' +
+    '<ol><li>上の招待リンクを<b>コピーして、自分あてに送る</b>(LINEのKeepやメールなど)</li><li>もう1台でそのリンクを開く</li><li>いちばん上の「<b>前に入ったことがある</b>」で自分の名前を選び、決めた合言葉を入れる</li></ol>' +
+    '<ul><li>「はじめて入る」から入ると、<b>別のアカウントが増えてしまう</b>ので使わない</li><li>合言葉は、入っている端末の右上の<b>🔑</b>で見られる。どこからも入れなくなったら、管理者に「合言葉をリセット」してもらう</li>' +
+    '<li>質問・問題・勝負・作業部屋の記録などは、どの端末から見ても同じ</li>' +
+    '<li>' + esc(nameBy(S.admin)) + 'の体制を見せてもらっている人は、新しい端末で見られるようになるまで少しかかる(' + esc(nameBy(S.admin)) + 'の端末が開かれると自動で届く)。📌・予想・挑戦状は端末ごとに別で、引き継がれない</li></ul>' +
+    '<h4>知っておいてほしいこと</h4><ul><li>書いたものは、ここにいる人全員に見える</li><li>勉強の記録(作業部屋の時間・解いた問題・勝負など)は、管理者の' + esc(nameBy(S.admin)) + 'がまとめて見られる。みんなで続けるために使う</li><li>招待リンクを知っている人なら、だれでも入れる。知らない人には送らないで</li><li>合言葉は自分だけのもの。ほかの人は君として入れない</li><li>人を困らせる使い方をした人は、管理者が<b>追放</b>できる。追放されると、その端末から入れなくなり、書いたものもみんなの画面から見えなくなる。管理者は追放を解除することもできる</li></ul></div>' +
+    '<div class="sect"><h3>自分のアカウント<small>' + esc(nameBy(me())) + '</small></h3><p class="note" style="margin:0 0 .4rem">右上の🔑を押すと、自分の合言葉が見られる(この端末で入ったときのもの)。合言葉を忘れてどこからも入れないときは、管理者に「合言葉をリセット」してもらう。</p></div>' + changeScreen(false);
 }
 function inviteLink(){ if (!conf) return ""; const k = btoa(JSON.stringify({ r: conf.repo, t: conf.token, b: conf.branch || "main", f: conf.me || null })).replace(/=+$/, ""); return location.origin + location.pathname + "#k=" + k; }
 
@@ -568,7 +578,8 @@ function admin(){
   return '<div class="sect"><h3>メンバー<small>' + live.length + '人</small></h3><p class="lead">メンバーは招待リンクで自由に増える。困った人がいたら外したり、追放したりできる。</p>' +
     live.slice().sort((a, b) => a.at - b.at).map(m => '<div class="req"><div class="top"><b>' + esc(m.name) + "</b>" + (m.id === S.admin ? '<span class="pill done">管理者</span>' : "") + '<span class="when">' + md(m.at) + " に参加</span></div>" +
       '<div class="note">' + (m.by ? esc(nameBy(m.by)) + "の招待" : "最初のメンバー") + "</div>" +
-      (m.id !== S.admin ? '<div class="ctl"><button type="button" class="linkx" data-delm="' + m.id + '">外す</button><button type="button" class="btn ghost sm" data-ban="' + m.id + '" style="color:var(--shu);border-color:var(--shu)">追放</button></div>' : "") + "</div>").join("") +
+      (m.id !== S.admin ? '<div class="ctl"><button type="button" class="linkx" data-delm="' + m.id + '">外す</button><button type="button" class="btn ghost sm" data-resetpass="' + m.id + '">合言葉をリセット</button><button type="button" class="btn ghost sm" data-ban="' + m.id + '" style="color:var(--shu);border-color:var(--shu)">追放</button></div>' : "") +
+      (m.mustChange ? '<div class="note" style="color:var(--warn)">仮の合言葉を出したところ(本人が入って変えるまで)</div>' : "") + "</div>").join("") +
     '<dl class="gloss" style="margin:.6rem 0 0;font-size:.84rem"><dt>外す</dt><dd>メンバーの記録を消すだけ。招待リンクがあれば、また入れる</dd><dt>追放</dt><dd>その人と、その人の端末を入れなくする。書いたもの(質問・答え・問題・意見など)はみんなの画面から見えなくなる。体制も届かなくなる。データは消さないので、解除すると元に戻る</dd></dl></div>' +
     '<div class="sect"><h3>追放した人<small>' + out.length + "人</small></h3>" + (out.length ? out.map(m => '<div class="req"><div class="top"><b>' + esc(m.name) + '</b><span class="when">' + (m.bannedAt ? md(m.bannedAt) + " に追放" : "") + "</span></div>" +
       '<div class="note">端末 ' + (m.pubs || []).length + "台を止めている</div>" + '<div class="ctl"><button type="button" class="btn sm" data-unban="' + m.id + '">追放を解除する</button></div></div>').join("") : '<p class="empty">いない。</p>') +
@@ -982,6 +993,11 @@ function badge(k){
   if (k === "board") { const n = S.qs.filter(q => ok_(q.by) && !q.solved && !q.ans.filter(x => ok_(x.by)).length).length; return n ? '<span class="n">' + n + "</span>" : ""; }
   return "";
 }
+function changeScreen(forced){
+  return '<div class="' + (forced ? "gate" : "sect") + '">' + (forced ? '<h1>新しい合言葉を決めてね</h1><p>仮の合言葉で入ったので、自分だけの合言葉に変える。</p>' : '<h3>合言葉を変える</h3>') +
+    '<input id="np1" type="password" placeholder="新しい合言葉" aria-label="新しい合言葉"><input id="np2" type="password" placeholder="もう一回" aria-label="新しい合言葉をもう一回">' +
+    '<div class="err" role="alert" id="nperr"></div><div><button type="button" class="btn' + (forced ? "" : " sm") + '" id="changepass">変える</button></div>' + (forced ? "" : '<p class="note" style="margin:.4rem 0 0">変えると、ほかの端末で入るときも新しい合言葉になる。</p>') + "</div>";
+}
 function bannedScreen(){ return '<div class="gate"><h1>この勉強の場には入れません</h1><p>管理者によって追放されています。</p><p class="note">心当たりがなければ、管理者に直接聞いてください。</p></div>'; }
 function render(){
   const app = $("app");
@@ -992,7 +1008,9 @@ function render(){
   setTimeout(showActiveTabs, 0);
   const T = tabsList(); if (!T.some(([k]) => k === tab)) tab = "guide";
   const P = { guide, room, battle: battles, board, probs: problems, make, admin: () => admin() + adminSys() + adminDevice(), sys: sysArea, sum: summaryTab, ideas: ideasTab };
-  app.innerHTML = '<div class="mast"><h1>' + (tab === "sys" || (tab === "admin" && previewPreset) ? esc(nameBy(S.admin)) + "の体制" : "勉強の場") + "</h1><small>" + esc(nameBy(me())) + "</small></div>" +
+  if ((S.members.find(m => m.id === me()) || {}).mustChange) { app.innerHTML = changeScreen(true); const f = $("np1"); if (f) f.focus(); return; }
+  app.innerHTML = '<div class="mast"><h1>' + (tab === "sys" || (tab === "admin" && previewPreset) ? esc(nameBy(S.admin)) + "の体制" : "勉強の場") + "</h1><small>" + esc(nameBy(me())) + ' <button type="button" class="linkx" id="showpass" aria-label="自分の合言葉を見る" title="自分の合言葉を見る" style="text-decoration:none;font-size:1rem">🔑</button></small></div>' +
+    (passShown ? '<div class="lock"><span class="ic" aria-hidden="true">🔑</span><span>' + (myPass() ? "君の合言葉:<b style=\"font-size:1.1rem;letter-spacing:.05em\">" + esc(myPass()) + "</b>(この端末にだけ保存。人に見せない)" : "この端末には合言葉が残っていない。説明書のいちばん下「自分のアカウント」で新しい合言葉に変えると、ここで見られるようになる") + ' <button type="button" class="linkx" id="hidepass">隠す</button></span></div>' : "") +
     '<nav class="tabs" aria-label="勉強の場">' + T.map(([k, l]) => '<button type="button" data-tab="' + k + '" aria-pressed="' + (tab === k) + '">' + l + badge(k) + "</button>").join("") + "</nav>" + P[tab]();
 }
 async function afterTab(){
@@ -1019,9 +1037,9 @@ document.addEventListener("click", async e => {
     const id = "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), salt = Math.random().toString(36).slice(2, 10), ph = await hash(a, salt), by = conf.from || null;
     const kidNow = (await ensureKeys()).kid;
     const okk = await mutate(D => { if ((D.bannedKids || []).includes(kidNow) && !(((D.members.find(x => x.id === D.admin) || {}).pubs || []).some(p1 => p1.kid === kidNow))) { gateErr = "この端末からは入れない(追放されている)"; return false; } if (D.members.some(m => m.name === n)) { gateErr = "その名前はもう使われてる"; return false; } D.members.push({ id, name: n, salt, ph, by, at: Date.now() }); if (!D.admin) D.admin = id; }, "メンバー:" + n);
-    if (okk) { conf.me = id; delete conf.from; lsSet(CONF_KEY, conf); gateErr = ""; tab = "guide"; snd("open"); await publishMyKey(); } render(); return; }
+    if (okk) { conf.me = id; delete conf.from; lsSet(CONF_KEY, conf); rememberPass(id, a); gateErr = ""; tab = "guide"; snd("open"); await publishMyKey(); } render(); return; }
   if (t.id === "loginbtn") { const m = S.members.find(x => x.id === $("lname").value); if (!m || m.banned) return;
-    if ((await hash($("lpass").value, m.salt)) === m.ph) { conf.me = m.id; lsSet(CONF_KEY, conf); gateErr = ""; snd("open"); await publishMyKey(); } else { gateErr = "合言葉が違う"; snd("error"); } render(); return; }
+    if ((await hash($("lpass").value, m.salt)) === m.ph) { conf.me = m.id; lsSet(CONF_KEY, conf); rememberPass(m.id, $("lpass").value); gateErr = ""; snd("open"); await publishMyKey(); } else { gateErr = "合言葉が違う"; snd("error"); } render(); return; }
   if (d.tab) { if (d.tab === "ideas" && tab !== "ideas") lsSet("study-prevtab", tab); previewPreset = null; tab = d.tab; lsSet("study-tab", tab); viewing = null; playing = null; render(); window.scrollTo(0, 0); snd("tab"); afterTab(); return; }
   if (t.id === "copylink") { const inp = $("invlink"); try { await navigator.clipboard.writeText(inp.value); toast("招待リンクをコピーした"); } catch (x) { inp.select(); } snd("save"); return; }
   // 意見箱
@@ -1131,6 +1149,16 @@ document.addEventListener("click", async e => {
   if (d.fbst) { const id = d.fbst, v = d.v; if (await mutate(D => { const x = (D.fb || []).find(y => y.id === id); if (!x) return false; x.status = v; }, "依頼の進み")) snd("toggleOn"); keepY(); return; }
   if (d.reply) { const id = d.reply, inp = document.querySelector('[data-replyin="' + id + '"]'), v = inp && inp.value.trim(); if (!v) return; const x = (S.fb || []).find(y => y.id === id), m = S.members.find(y => y.id === x.from), pub = m && (m.pubs || []).find(p1 => p1.kid === x.kid);
     if (!pub) { toast("この人の端末の鍵がない"); return; } const box = await enc(await shared(pub.jwk), v); if (await mutate(D => { const y = (D.fb || []).find(z => z.id === id); if (!y) return false; y.reply = box; if (y.status === "new") y.status = "doing"; }, "依頼の返事")) { snd("save"); toast("返事を送った"); } keepY(); return; }
+  // 合言葉
+  if (t.id === "showpass") { passShown = !passShown; keepY(); return; }
+  if (t.id === "hidepass") { passShown = false; keepY(); return; }
+  if (t.id === "changepass") { const a1 = $("np1").value, b1 = $("np2").value, er = $("nperr");
+    if (a1.length < 4) { er.textContent = "4文字以上にしてね"; snd("error"); return; } if (a1 !== b1) { er.textContent = "2つの合言葉が違う"; snd("error"); return; }
+    const salt = Math.random().toString(36).slice(2, 10), ph = await hash(a1, salt);
+    if (await mutate(D => { const m = D.members.find(x => x.id === me()); if (!m) return false; m.salt = salt; m.ph = ph; delete m.mustChange; }, "合言葉を変える")) { rememberPass(me(), a1); snd("done"); toast("合言葉を変えた。右上の🔑でいつでも見られる"); } render(); return; }
+  if (d.resetpass) { const m = S.members.find(x => x.id === d.resetpass); if (!m || !isAdmin()) return; if (!confirm(m.name + "の合言葉をリセットする?\n仮の合言葉が出るので、本人に伝える。")) return;
+    const code = Array.from(crypto.getRandomValues(new Uint8Array(6)), x => "abcdefghjkmnpqrstuvwxyz23456789"[x % 31]).join(""), salt = Math.random().toString(36).slice(2, 10), ph = await hash(code, salt);
+    if (await mutate(D => { if (!isAdmin()) return false; const mm = D.members.find(x => x.id === m.id); if (!mm) return false; mm.salt = salt; mm.ph = ph; mm.mustChange = true; }, "合言葉のリセット:" + m.name)) { snd("save"); alert(m.name + "の仮の合言葉:" + code + "\n\n本人に伝えて、「前に入ったことがある」から入ってもらう。入るとすぐ、新しい合言葉を決める画面になる。"); } keepY(); return; }
   // 追放・解除
   if (d.ban) { const m = S.members.find(x => x.id === d.ban); if (!m || m.id === S.admin) return;
     if (!confirm(m.name + "を追放する?\nその人と端末は入れなくなり、書いたものは見えなくなる。あとで解除できる。")) return;
@@ -1151,6 +1179,7 @@ document.addEventListener("keydown", e => {
   if (e.target.id === "btin") { const b = $("btsend"); if (b) b.click(); }
   if (["p1", "p2", "jname"].includes(e.target.id)) { const b = $("joinbtn"); if (b) b.click(); }
   if (e.target.id === "lpass") { const b = $("loginbtn"); if (b) b.click(); }
+  if (e.target.id === "np1" || e.target.id === "np2") { const b = $("changepass"); if (b) b.click(); }
   if (e.target.id === "stoken") { const b = $("setupgo"); if (b) b.click(); }
 });
 setInterval(() => { document.querySelectorAll("[data-since]").forEach(el => { el.textContent = mins(+el.dataset.since) + "分"; }); }, 30000);
