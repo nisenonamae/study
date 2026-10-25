@@ -337,7 +337,7 @@ textarea{ width:100%; min-height:5em; padding:.6rem .7rem; border:1px solid var(
 /* ═══════════ 勉強の場(本番) ═══════════
    データは非公開リポジトリの study.json に保存。鍵は招待リンクの # の後ろに入っていて、ページ本体には書かない。
    リアルタイムではない:45秒ごとに読み直す。書き込むときは、最新を読んでから書く(ぶつかったら読み直して書き直す) */
-const APP_VERSION = "2026-10-25 s13";
+const APP_VERSION = "2026-10-25 s14";
 const SUBJECTS = ["数学", "英語", "国語", "理科", "社会", "その他"];
 const CONF_KEY = "study-conf";
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
@@ -1123,24 +1123,45 @@ function changeScreen(forced){
 function bannedScreen(){ return '<div class="gate"><h1>この勉強の場には入れません</h1><p>管理者によって追放されています。</p><p class="note">心当たりがなければ、管理者に直接聞いてください。</p></div>'; }
 function render(){
   const app = $("app");
-  if (!conf) { app.innerHTML = setupScreen(); return; }
-  if (!loaded) { app.innerHTML = '<div class="gate"><h1>読み込み中</h1>' + (loadErr ? '<p class="err">' + esc(loadErr) + '</p><div><button type="button" class="btn ghost sm" id="retry">もう一度</button> <button type="button" class="btn ghost sm" id="logout">設定をやり直す</button></div>' : "") + "</div>"; return; }
-  if ((me() && isBanned(me())) || deviceBanned()) { app.innerHTML = bannedScreen(); return; }
-  if (!me() || !S.members.some(m => m.id === me())) { app.innerHTML = joinScreen(); const f = $("lpass") || $("jname"); if (f) f.focus(); return; }
-  setTimeout(showActiveTabs, 0);
+  if (!conf) { app.innerHTML = setupScreen(); lastHdr = lastNav = null; return; }
+  if (!loaded) { lastHdr = lastNav = null; app.innerHTML = '<div class="gate"><h1>読み込み中</h1>' + (loadErr ? '<p class="err">' + esc(loadErr) + '</p><div><button type="button" class="btn ghost sm" id="retry">もう一度</button> <button type="button" class="btn ghost sm" id="logout">設定をやり直す</button></div>' : "") + "</div>"; return; }
+  if ((me() && isBanned(me())) || deviceBanned()) { lastHdr = lastNav = null; app.innerHTML = bannedScreen(); return; }
+  if (!me() || !S.members.some(m => m.id === me())) { lastHdr = lastNav = null; app.innerHTML = joinScreen(); const f = $("lpass") || $("jname"); if (f) f.focus(); return; }
   const T = tabsList(); if (!T.some(([k]) => k === tab)) tab = "guide";
   const P = { guide, room, battle: battles, board, probs: problems, make, admin: () => admin() + adminSys() + adminDevice(), sys: sysArea, sum: summaryTab, ideas: ideasTab, rank: ranking };
-  if ((S.members.find(m => m.id === me()) || {}).mustChange) { app.innerHTML = changeScreen(true); const f = $("np1"); if (f) f.focus(); return; }
-  app.innerHTML = '<div class="mast"><h1>' + (tab === "sys" || (tab === "admin" && previewPreset) ? esc(nameBy(S.admin)) + "の体制" : "勉強の場") + "</h1><small>" + esc(nameBy(me())) + ' <button type="button" class="linkx" id="showpass" aria-label="自分の合言葉を見る" title="自分の合言葉を見る" style="text-decoration:none;font-size:1rem">🔑</button> <span id="syncing" class="note" ' + (pendingFns.length ? "" : "hidden") + '>送信中…</span></small></div>' +
+  if ((S.members.find(m => m.id === me()) || {}).mustChange) { lastHdr = lastNav = null; app.innerHTML = changeScreen(true); const f = $("np1"); if (f) f.focus(); return; }
+  const hdr = '<div class="mast"><h1>' + (tab === "sys" || (tab === "admin" && previewPreset) ? esc(nameBy(S.admin)) + "の体制" : "勉強の場") + "</h1><small>" + esc(nameBy(me())) + ' <button type="button" class="linkx" id="showpass" aria-label="自分の合言葉を見る" title="自分の合言葉を見る" style="text-decoration:none;font-size:1rem">🔑</button> <span id="syncing" class="note" ' + (pendingFns.length ? "" : "hidden") + '>送信中…</span></small></div>' +
     (passShown ? '<div class="lock"><span class="ic" aria-hidden="true">🔑</span><span>' + (myPass() ? "君の合言葉:<b style=\"font-size:1.1rem;letter-spacing:.05em\">" + esc(myPass()) + "</b>(この端末にだけ保存。人に見せない)" : "この端末には合言葉が残っていない。説明書のいちばん下「自分のアカウント」で新しい合言葉に変えると、ここで見られるようになる") + ' <button type="button" class="linkx" id="hidepass">隠す</button></span></div>' : "") +
-    noticesHtml() + '<nav class="tabs" aria-label="勉強の場">' + T.map(([k, l]) => '<button type="button" data-tab="' + k + '" aria-pressed="' + (tab === k) + '">' + l + badge(k) + "</button>").join("") + "</nav>" + P[tab]();
+    noticesHtml();
+  const navInner = T.map(([k, l]) => '<button type="button" data-tab="' + k + '" aria-pressed="false">' + l + badge(k) + "</button>").join("");
+  paint(hdr, navInner, P[tab]());
+}
+/* 変わったところだけ入れ替える:見出しは中身が同じなら触らない。タブの列はボタンの並びが同じなら、押されている印だけ変える(横の位置もそのまま) */
+let lastHdr = null, lastNav = null;
+function paint(hdr, navInner, content){
+  const app = $("app");
+  let shell = $("shell");
+  if (!shell) { app.innerHTML = '<div id="shell"><div id="hdr"></div><nav class="tabs" id="tabbar" aria-label="勉強の場"></nav><div id="content"></div></div>'; shell = $("shell"); lastHdr = lastNav = null; }
+  if (hdr !== lastHdr) { $("hdr").innerHTML = hdr; lastHdr = hdr; }
+  const bar = $("tabbar");
+  if (navInner !== lastNav) { const x = bar.scrollLeft; bar.innerHTML = navInner; bar.scrollLeft = x; lastNav = navInner; }
+  bar.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-pressed", b.dataset.tab === tab ? "true" : "false"));
+  // 中身の中にあるタブの列(体制のタブなど)も、横の位置を保つ
+  const keepX = {}; $("content").querySelectorAll("nav.tabs").forEach(n => { keepX[n.getAttribute("aria-label")] = n.scrollLeft; });
+  $("content").innerHTML = content;
+  $("content").querySelectorAll("nav.tabs").forEach(n => { const k = n.getAttribute("aria-label"); if (k in keepX) n.scrollLeft = keepX[k]; });
+  showActiveTabs();
 }
 async function afterTab(){
-  if (tab === "ideas") { await decryptIdeas(); lsSet("study-ideaseen", (S.ideas || []).filter(x => x.by === me() && x.reply).map(x => x.id + ":" + (x.reply.at || 0))); keepY(); }
+  if (tab === "ideas") { const before = JSON.stringify(ideaPlain), seen0 = JSON.stringify(lsGet("study-ideaseen", [])); await decryptIdeas(); lsSet("study-ideaseen", (S.ideas || []).filter(x => x.by === me() && x.reply).map(x => x.id + ":" + (x.reply.at || 0)));
+    if (JSON.stringify(ideaPlain) !== before || JSON.stringify(lsGet("study-ideaseen", [])) !== seen0) keepY(); }
   if (tab === "sys") { if (!sysData && !sysLoading) { render(); await loadSysData(); } await decryptMine(); keepY(); }
-  if (tab === "admin" && isAdmin()) { if (ownerConf && !sysSource) { try { sysSource = await buildSource(); sysSourceErr = ""; } catch (e) { sysSourceErr = e.message; } } await decryptInbox(); keepY(); }
+  if (tab === "admin" && isAdmin()) { let changed = false; if (ownerConf && !sysSource) { try { sysSource = await buildSource(); sysSourceErr = ""; } catch (e) { sysSourceErr = e.message; } changed = true; }
+    const before = JSON.stringify(ownerPlain); await decryptInbox(); if (changed || JSON.stringify(ownerPlain) !== before) keepY(); }
 }
-function showActiveTabs(){ document.querySelectorAll("nav.tabs").forEach(n => { const b = n.querySelector('[aria-pressed="true"]'); if (b) n.scrollLeft = Math.max(0, b.offsetLeft - n.clientWidth / 2 + b.offsetWidth / 2); }); }
+function showActiveTabs(){ document.querySelectorAll("nav.tabs").forEach(n => { const b = n.querySelector('[aria-pressed="true"]'); if (!b) return;
+  const nb = n.getBoundingClientRect(), bb = b.getBoundingClientRect();
+  if (bb.left < nb.left + 4) n.scrollLeft = Math.max(0, n.scrollLeft + bb.left - nb.left - 16); else if (bb.right > nb.right - 4) n.scrollLeft = n.scrollLeft + bb.right - nb.right + 16; }); }
 const keepY = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
 async function refresh(){ if (!conf || busy || playing || pendingFns.length) return; const a = document.activeElement; if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA") && a.value) return;
   try { await load(); loadErr = ""; if (tab === "ideas") await decryptIdeas(); if (isAdmin() && ownerConf && (S.presets || []).length && needsExport() && !exporting) exportSys().then(() => keepY());
