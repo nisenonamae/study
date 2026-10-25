@@ -337,7 +337,7 @@ textarea{ width:100%; min-height:5em; padding:.6rem .7rem; border:1px solid var(
 /* ═══════════ 勉強の場(本番) ═══════════
    データは非公開リポジトリの study.json に保存。鍵は招待リンクの # の後ろに入っていて、ページ本体には書かない。
    リアルタイムではない:45秒ごとに読み直す。書き込むときは、最新を読んでから書く(ぶつかったら読み直して書き直す) */
-const APP_VERSION = "2026-10-25 s7";
+const APP_VERSION = "2026-10-25 s8";
 const SUBJECTS = ["数学", "英語", "国語", "理科", "社会", "その他"];
 const CONF_KEY = "study-conf";
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
@@ -416,17 +416,20 @@ const liveRoom = () => Object.fromEntries(Object.entries(S.room.on || {}).filter
 
 /* ═════ はじめて(管理者の設定)・招待から入る・合言葉 ═════ */
 function setupScreen(){
-  return '<div class="gate"><h1>勉強の場をはじめる</h1><p>最初の1回だけ。データを置く非公開リポジトリと、そこだけを読み書きできる鍵を入れる。ここで設定した人が管理者になる。</p>' +
+  return '<div class="gate"><h1>勉強の場をはじめる</h1><p>データを置く非公開リポジトリと、そこだけを読み書きできる鍵を入れる。</p>' +
+    '<p class="note"><b>まだ誰もいないときだけ</b>、ここで設定した人が管理者になる。すでに勉強の場があって、スマホなど別の端末で入りたいときは、招待リンクを開くか、ここで同じ鍵を入れたあと「前に入ったことがある」から入る(管理者は増えない)。</p>' +
     '<input id="srepo" placeholder="ユーザー名/study-data" aria-label="リポジトリ"><input id="stoken" type="password" placeholder="鍵(トークン)" aria-label="鍵"><input id="sbranch" placeholder="ブランチ(空なら main)" aria-label="ブランチ">' +
     '<div class="err" role="alert">' + esc(gateErr) + '</div><div><button type="button" class="btn" id="setupgo">つなぐ</button></div>' +
-    '<p class="note">招待リンクから来た人は、この画面ではなく、入る画面が出る。</p></div>';
+    '<p class="note">招待リンクから来た人には、この画面ではなく、入る画面が出る。</p></div>';
 }
 function joinScreen(){
-  const has = S.members.length > 0;
-  return '<div class="gate"><h1>' + (S.admin ? "勉強の場に招待されたよ" : "最初のメンバーとして入る") + '</h1><p>勉強の質問をしたり、問題を出し合ったり、一緒に勉強したりする場所。</p>' +
+  const L = liveMembers(), has = L.length > 0;
+  const login = '<div class="sect" style="text-align:left"><h3>前に入ったことがある<small>別の端末・スマホから</small></h3><p class="note" style="margin:0 0 .4rem">自分の名前を選んで、決めた合言葉を入れる。前と同じアカウントで入れる(管理者も、管理者のまま)。</p>' +
+    '<div class="chal-form"><select id="lname" aria-label="名前">' + L.map(m => '<option value="' + m.id + '">' + esc(m.name) + (m.id === S.admin ? "(管理者)" : "") + "</option>").join("") + '</select><input id="lpass" type="password" placeholder="合言葉" aria-label="合言葉"><button type="button" class="btn sm" id="loginbtn">入る</button></div></div>';
+  const join = '<div class="sect" style="text-align:left"><h3>' + (S.admin ? "はじめて入る" : "最初のメンバーとして入る(管理者になる)") + '</h3>' + (has ? '<p class="note" style="margin:0 0 .4rem">はじめての人だけ。前に入ったことがある人がここで入ると、別のアカウントが増えてしまう。</p>' : "") +
     '<input id="jname" placeholder="ここで使う名前" aria-label="名前"><input id="p1" type="password" placeholder="合言葉(自分だけのもの)" aria-label="合言葉"><input id="p2" type="password" placeholder="合言葉をもう一回" aria-label="合言葉をもう一回">' +
-    '<div class="err" role="alert">' + esc(gateErr) + '</div><div><button type="button" class="btn" id="joinbtn">入る</button></div>' +
-    (has ? '<div class="sub-h" style="margin-top:1.2rem">前に入ったことがある</div><div class="chal-form"><select id="lname" aria-label="名前">' + liveMembers().map(m => '<option value="' + m.id + '">' + esc(m.name) + "</option>").join("") + '</select><input id="lpass" type="password" placeholder="合言葉" aria-label="合言葉"><button type="button" class="btn ghost sm" id="loginbtn">入る</button></div>' : "") + "</div>";
+    '<div style="margin-top:.5rem"><button type="button" class="btn" id="joinbtn">入る</button></div></div>';
+  return '<div class="gate"><h1>' + (S.admin ? "勉強の場" : "勉強の場をはじめる") + '</h1><p>勉強の質問をしたり、問題を出し合ったり、一緒に勉強したりする場所。</p><div class="err" role="alert">' + esc(gateErr) + "</div>" + (has ? login + join : join) + "</div>";
 }
 
 /* ═════ 説明書 ═════ */
@@ -571,7 +574,10 @@ function admin(){
       '<div class="note">端末 ' + (m.pubs || []).length + "台を止めている</div>" + '<div class="ctl"><button type="button" class="btn sm" data-unban="' + m.id + '">追放を解除する</button></div></div>').join("") : '<p class="empty">いない。</p>') +
     '<p class="note" style="margin:.6rem 0 0">追放は、その人がアプリで使っていた端末を止める仕組み。ブラウザのデータを全部消したり、別の端末を使ったりして、別の招待リンクから入り直されると抜けられてしまう。それでも困るときは、GitHubで鍵(トークン)を作り直して、新しい招待リンクを残す人にだけ送る。</p></div>';
 }
-function adminDevice(){ return '<div class="sect"><h3>この端末</h3><p class="note">版 ' + APP_VERSION + " ・ " + esc(conf.repo) + '</p><button type="button" class="btn ghost sm" id="logout">この端末から出る</button></div>'; }
+function adminDevice(){ return '<div class="sect"><h3>スマホなど別の端末で使う</h3><ol style="margin:0;padding-left:1.3rem;font-size:.9rem"><li>下のリンクを、使いたい端末で開く(自分あてにLINEなどで送ると楽)</li><li>「<b>前に入ったことがある</b>」で自分の名前(管理者)を選ぶ</li><li>決めた合言葉を入れる → 管理者のまま入れる</li></ol>' +
+    '<div class="chal-form" style="margin-top:.4rem"><input id="invlink" readonly value="' + esc(inviteLink()) + '" aria-label="自分用のリンク"><button type="button" class="btn sm" id="copylink">コピー</button></div>' +
+    '<p class="note" style="margin:.4rem 0 0">「はじめて入る」から入ると、別のアカウントが増えてしまうので注意。体制を届ける仕事(「最新にする」)と「管理者だけ」の意見を読むのは、体制のデータにつないだ端末で行う。</p></div>' +
+    '<div class="sect"><h3>この端末</h3><p class="note">版 ' + APP_VERSION + " ・ " + esc(conf.repo) + '</p><button type="button" class="btn ghost sm" id="logout">この端末から出る</button></div>'; }
 
 /* ═══════════ 体制(管理者が選んだ人にだけ見える) ═══════════
    ・端末ごとに鍵の組(ECDH)を自動で作る。公開鍵だけを study.json に置く
@@ -982,7 +988,7 @@ function render(){
   if (!conf) { app.innerHTML = setupScreen(); return; }
   if (!loaded) { app.innerHTML = '<div class="gate"><h1>読み込み中</h1>' + (loadErr ? '<p class="err">' + esc(loadErr) + '</p><div><button type="button" class="btn ghost sm" id="retry">もう一度</button> <button type="button" class="btn ghost sm" id="logout">設定をやり直す</button></div>' : "") + "</div>"; return; }
   if ((me() && isBanned(me())) || deviceBanned()) { app.innerHTML = bannedScreen(); return; }
-  if (!me() || !S.members.some(m => m.id === me())) { app.innerHTML = joinScreen(); const f = $("jname"); if (f) f.focus(); return; }
+  if (!me() || !S.members.some(m => m.id === me())) { app.innerHTML = joinScreen(); const f = $("lpass") || $("jname"); if (f) f.focus(); return; }
   setTimeout(showActiveTabs, 0);
   const T = tabsList(); if (!T.some(([k]) => k === tab)) tab = "guide";
   const P = { guide, room, battle: battles, board, probs: problems, make, admin: () => admin() + adminSys() + adminDevice(), sys: sysArea, sum: summaryTab, ideas: ideasTab };
