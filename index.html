@@ -119,7 +119,7 @@ textarea{ width:100%; min-height:5em; padding:.6rem .7rem; border:1px solid var(
 .pill{ font-size:.74rem; border-radius:999px; padding:0 .55rem; border:1px solid currentColor; white-space:nowrap; }
 .pill.new{ color:var(--sub); } .pill.doing{ color:var(--warn); } .pill.done{ color:var(--ok); }
 .req .reply{ margin-top:.4rem; padding:.45rem .65rem; background:var(--paper); border-radius:4px; font-size:.88rem; }
-.req .ctl{ display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.5rem; }
+.ctl, .req .ctl{ display:flex; gap:.4rem .6rem; flex-wrap:wrap; align-items:center; margin-top:.5rem; }
 .req .ctl input{ flex:1 1 12em; min-width:0; padding:.42rem .6rem; border:1px solid var(--rule); border-radius:4px; background:var(--paper); font-size:.88rem; }
 .empty{ color:var(--sub); font-size:.9rem; padding:.4rem 0; }
 
@@ -337,13 +337,13 @@ textarea{ width:100%; min-height:5em; padding:.6rem .7rem; border:1px solid var(
 /* ═══════════ 勉強の場(本番) ═══════════
    データは非公開リポジトリの study.json に保存。鍵は招待リンクの # の後ろに入っていて、ページ本体には書かない。
    リアルタイムではない:45秒ごとに読み直す。書き込むときは、最新を読んでから書く(ぶつかったら読み直して書き直す) */
-const APP_VERSION = "2026-10-25 s11";
+const APP_VERSION = "2026-10-25 s13";
 const SUBJECTS = ["数学", "英語", "国語", "理科", "社会", "その他"];
 const CONF_KEY = "study-conf";
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 let conf = lsGet(CONF_KEY, null);   // { repo, token, branch, me }
-const blankData = () => ({ version: 1, admin: null, linkVer: 1, members: [], qs: [], probs: [], books: [], bookLog: [], battles: [], room: { on: {}, log: [] }, presets: [], grants: {}, fb: [], ownerPub: null, sysAt: 0, events: [], ideas: [], bannedKids: [] });
+const blankData = () => ({ version: 1, admin: null, linkVer: 1, members: [], qs: [], probs: [], books: [], bookLog: [], battles: [], room: { on: {}, log: [] }, presets: [], grants: {}, fb: [], ownerPub: null, sysAt: 0, events: [], ideas: [], bannedKids: [], notices: [], att: [] });
 let S = blankData(), sha = null, loaded = false, loadErr = "", busy = false;
 
 /* ───── GitHub ───── */
@@ -357,15 +357,19 @@ async function gh(path, opts){
 }
 const staleShas = new Set();   // 自分が書いて古くなった版。GitHubが書いた直後にこれを返したら、待って読み直す
 let lastGood = null;           // 自分が最後に書いた中身と版
-async function load(){
+/* GitHub から今の中身を取ってくる(画面のデータ S には触らない) */
+async function fetchRemote(){
   for (let k = 0; k < 6; k++) {
     const r = await gh("study.json");
-    if (r.ok) { const j = await r.json(); if (staleShas.has(j.sha) && k < 5) { await new Promise(z => setTimeout(z, 700 + k * 300)); continue; }
-      if (staleShas.has(j.sha) && lastGood) { S = JSON.parse(JSON.stringify(lastGood.data)); sha = lastGood.sha; loaded = true; return; }
-      S = Object.assign(blankData(), JSON.parse(b64dec(j.content))); sha = j.sha; loaded = true; return; }
+    if (r.ok) { const j = await r.json();
+      if (staleShas.has(j.sha) && lastGood) return { data: clone(lastGood.data), sha: lastGood.sha };   // 自分が書いた最新を知っているので待たない
+      if (staleShas.has(j.sha) && k < 3) { await new Promise(z => setTimeout(z, 400 + k * 300)); continue; }
+      return { data: Object.assign(blankData(), JSON.parse(b64dec(j.content))), sha: j.sha }; }
     return loadFail(r);
   }
+  return lastGood ? { data: clone(lastGood.data), sha: lastGood.sha } : { data: blankData(), sha: null };
 }
+async function load(){ const r = await fetchRemote(); S = r.data; sha = r.sha; loaded = true; }
 async function loadFail(r){
   if (r.status === 404) {
     const H = { Authorization: "Bearer " + conf.token, Accept: "application/vnd.github+json" }, br = conf.branch || "main";
@@ -373,22 +377,41 @@ async function loadFail(r){
     if (!rr.ok) throw new Error("リポジトリ「" + conf.repo + "」が見つからない、またはこの鍵では見られない(" + rr.status + ")。名前の打ち間違いか、鍵を作るときにこのリポジトリを選んでいないかを確かめて。招待リンクから開き直すのがいちばん確実");
     const bb = await fetch("https://api.github.com/repos/" + conf.repo + "/branches/" + encodeURIComponent(br) + "?t=" + Date.now(), { headers: H, cache: "no-store" });
     if (!bb.ok) throw new Error("ブランチ「" + br + "」がない。ふつうは main(空のリポジトリなら、README を作るとできる)");
-    S = blankData(); sha = null; loaded = true; return; }
+    return { data: blankData(), sha: null }; }
   if (r.status === 401) throw new Error("鍵が使えない(招待リンクが古いか、鍵の期限が切れている)");
   if (r.status === 403) throw new Error("鍵に読む許可がない、またはGitHubの回数制限(403)。少し待ってからもう一度");
   throw new Error("読み込めない(" + r.status + ")");
 }
+/* 書き込みは2段構え:押したらすぐ手元に反映して画面を変え、GitHub へは裏で順番に送る。
+   送る直前に最新を読み直して同じ変更を当て直すので、ほかの人の書き込みと混ざらない。
+   { wait: true } のときは、送り終わるまで待つ(入る・追放など、結果が大事なもの) */
+let syncChain = Promise.resolve(), pendingFns = [];
+const clone = o => JSON.parse(JSON.stringify(o));
+function reapplyPending(){ if (!pendingFns.length) return; const v = clone(S); pendingFns.forEach(f => { try { f(v); } catch (e) {} }); S = v; }
+function syncBadge(){ const el = document.getElementById("syncing"); if (el) el.hidden = !pendingFns.length; }
+function mutate(fn, msg, opt){
+  opt = opt || {};
+  if (!opt.wait && loaded) { const v = clone(S); let res; try { res = fn(v); } catch (e) { res = false; } if (res === false) return Promise.resolve(false); S = v; }
+  const entry = fn; if (!opt.wait) pendingFns.push(entry); syncBadge();
+  const job = syncChain.then(() => mutateNow(fn, msg)).then(ok => {
+    if (opt.wait) reapplyPending();
+    if (!opt.wait) { pendingFns = pendingFns.filter(f => f !== entry); reapplyPending(); syncBadge();
+      if (!ok) { toast("送れなかった:" + (lastErr || "もう一度") + "。読み直した"); refresh(); } else if (!pendingFns.length && !(document.activeElement && document.activeElement.matches && document.activeElement.matches("input,textarea"))) keepY(); }
+    return ok; });
+  syncChain = job.catch(() => {});
+  return opt.wait ? job : Promise.resolve(true);
+}
 /* 最新を読んで、変更を当てて、書く。ぶつかったらやり直す */
-async function mutate(fn, msg){
+async function mutateNow(fn, msg){
   if (busy) { lastErr = "前の書き込みがまだ終わっていない。少し待ってもう一度"; return false; } busy = true; lastErr = "";
   try {
     for (let i = 0; i < 7; i++) {
-      await load(); const res = fn(S); if (res === false) return false;
-      const r = await gh("study.json", { method: "PUT", body: { message: msg || "勉強の場", content: b64enc(JSON.stringify(S)), branch: conf.branch || "main", ...(sha ? { sha } : {}) } });
-      if (r.ok) { if (sha) staleShas.add(sha); sha = (await r.json()).content.sha; lastGood = { sha, data: JSON.parse(JSON.stringify(S)) }; return true; }
+      const R = await fetchRemote(), D = R.data; const res = fn(D); if (res === false) return false;
+      const r = await gh("study.json", { method: "PUT", body: { message: msg || "勉強の場", content: b64enc(JSON.stringify(D)), branch: conf.branch || "main", ...(R.sha ? { sha: R.sha } : {}) } });
+      if (r.ok) { if (R.sha) staleShas.add(R.sha); sha = (await r.json()).content.sha; lastGood = { sha, data: clone(D) }; S = clone(D); loaded = true; return true; }
       if (r.status === 403) throw new Error("書き込めない(403)。鍵の Contents が Read and write になっているか確かめて");
       if (r.status !== 409 && r.status !== 422) throw new Error("書き込めない(" + r.status + ")");
-      if (sha) staleShas.add(sha);
+      if (R.sha) staleShas.add(R.sha);
       await new Promise(z => setTimeout(z, 600 + i * 500 + Math.random() * 500));
     }
     throw new Error("ほかの人と同時に書き込みがぶつかった。もう一度押して");
@@ -450,7 +473,9 @@ function guide(){
   return '<div class="sect manual"><h3>説明書<small>勉強の場</small></h3>' +
     '<h4>これは何</h4><p>勉強の質問をしたり、問題を出し合ったり、一緒に勉強したりする場所。学校で忙しくても、休み時間の数分で使えるように作ってる。</p>' +
     '<h4>使い方</h4><ol><li><b>作業部屋</b>で「今から勉強する」を押すと、ほかの人に勉強中だと伝わる。<b>勉強会</b>の予定もここにある</li><li><b>勝負</b>で、だれかの募集に入ると勝負できる。自分で募集もできる</li>' +
-      '<li><b>質問板</b>に分からない問題を書く。気づいた人があとで答える</li><li><b>問題</b>で、今日の1問や、ランダムな1問を解く。<b>みんなの問題</b>はメンバーが「出す」で出した問題、<b>みんなの問題集</b>はメンバーが登録した問題集のこと</li><li><b>出す</b>で、問題を出したり、自分の問題集を登録したりする</li><li>不具合やほしい機能は<b>意見箱</b>へ。それをもとに直す</li></ol>' +
+      '<li><b>質問板</b>に分からない問題を書く。気づいた人があとで答える</li><li><b>問題</b>で、みんなの問題を1問ずつ解く。解く前に、その問題の直近10回の正解率が出る。正解した問題は明日以降にまた出て、まちがえた問題は今日のうちにまた出ることがある。今日解いた問題は一覧で見られて、日付が変わると消える。<b>みんなの問題集</b>(メンバーが登録した問題集)から解く場所を出すこともできる</li><li><b>ランキング</b>で、問題をいちばん作った人・解いた人が見られる</li><li><b>出す</b>で、問題を出したり、自分の問題集を登録したりする</li><li>不具合やほしい機能は<b>意見箱</b>へ。それをもとに直す</li></ol>' +
+    '<h4>問題を直す・消す</h4><p>自分が出した問題は、「出す」タブの「自分が出した問題」から、いつでも直したり消したりできる。ほかの人の問題は変えられない。ただし管理者は、まちがいや困る内容があるときに直したり消したりすることがある。そのときは必ず理由が書かれて、出した人に届く。</p>' +
+    '<h4>難易度</h4><dl class="gloss">' + [1, 2, 3, 4, 5].map(i => "<dt>" + lvStars(i) + " " + LV[i].n + "</dt><dd>" + LV[i].d + "</dd>").join("") + '</dl><p class="note">出した人の見立てのほかに、3人以上が解くと、正解率から「実際は〇〇」も出る。</p>' +
     '<h4>リアルタイムではない</h4><p>ほかの人が書いたことや打った手は、<b>だいたい1分以内</b>にこっちの画面に出る。すぐには出ないので、勝負はどれも「自分の空いた時間に進める」形になってる。同じ時間にいなくていい。</p>' +
     '<h4>ここにいる人</h4><div class="tasks">' + liveMembers().map(m => "<span>" + esc(m.name) + "</span>").join("") + "</div>" +
     '<h4>友達を呼ぶ</h4><p>このリンクを送れば、だれでも入れる。</p><div class="chal-form"><input id="invlink" readonly value="' + esc(inviteLink()) + '" aria-label="招待リンク"><button type="button" class="btn sm" id="copylink">コピー</button></div>' +
@@ -492,31 +517,119 @@ function board(){
     '<div class="sect"><h3>質問板<small>まだ解決していない ' + S.qs.filter(q => !q.solved).length + "件</small></h3>" + (S.qs.filter(q => ok_(q.by)).length ? S.qs.filter(q => ok_(q.by)).sort((a, b) => (a.solved - b.solved) || (b.at - a.at)).map(qCard).join("") : '<p class="empty">まだ質問はない。最初の1つを出してみて。</p>') + "</div>";
 }
 
+/* ═════ 難易度 ═════
+   出題者が付ける「見立て」(5段階)と、みんなの正解率から出る「実際」を並べて出す */
+const LV = [null, { n: "基礎", d: "教科書の例題。公式をそのまま使えば解ける" }, { n: "標準", d: "共通テスト・教科書の章末くらい" }, { n: "応用", d: "国公立・中堅私大の入試くらい" }, { n: "発展", d: "難関大の入試くらい" }, { n: "難関", d: "東大・京大・医学部の入試くらい" }];
+const lvStars = lv => "★".repeat(lv) + "☆".repeat(5 - lv);
+function realLevel(p){ const t = totOf(p); if (t.n < 3) return ""; const r = t.c / t.n;
+  return r >= .8 ? "やさしめ" : r >= .5 ? "ふつう" : r >= .2 ? "むずかしめ" : "かなり難しい"; }
+function lvTag(p){ const lv = p.lv || 2, real = realLevel(p), t = totOf(p);
+  return '<span title="' + esc(LV[lv].d) + '">' + lvStars(lv) + " " + LV[lv].n + (real ? " ・ 実際は" + real : "") + "</span>"; }
+const lvSelect = (id, v) => '<select id="' + id + '" aria-label="難易度">' + [1, 2, 3, 4, 5].map(i => '<option value="' + i + '"' + ((v || 2) === i ? " selected" : "") + ">" + lvStars(i) + " " + LV[i].n + "</option>").join("") + "</select>";
+const seenNotices = () => lsGet("study-notices-seen", []);
+function noticesHtml(){ const N = (S.notices || []).filter(x => x.to === me() && !seenNotices().includes(x.id)); if (!N.length) return "";
+  return N.map(x => '<div class="lock" style="border-left-color:var(--warn)"><span class="ic" aria-hidden="true">📮</span><span><b>' + esc(nameBy(x.by)) + "(管理者)から</b> ・ " + ago(x.at) + "<br>" + esc(x.text) + '<br><button type="button" class="btn ghost sm" data-noticeok="' + x.id + '" style="margin-top:.3rem">わかった</button></span></div>').join(""); }
+let editProb = null, randLv = 0;
+const canEditProb = p => p.by === me() || isAdmin();
+function probEditForm(p){
+  const other = p.by !== me();
+  return '<div class="sect" style="margin:.4rem 0"><h3>' + (other ? esc(nameBy(p.by)) + "の問題を直す(管理者)" : "問題を直す") + "</h3>" +
+    '<div class="chal-form"><select id="esub" aria-label="科目">' + SUBJECTS.map(x => "<option" + (x === p.sub ? " selected" : "") + ">" + x + "</option>").join("") + "</select>" + lvSelect("elv", p.lv) + "</div>" +
+    '<textarea id="eq" style="min-height:4em;margin-top:.4rem" aria-label="問題文">' + esc(p.q) + '</textarea><div class="chal-form"><input id="ea" value="' + esc(p.a) + '" aria-label="答え"><input id="ec" value="' + esc((p.choices || []).join("、")) + '" placeholder="選択肢(任意・読点区切り)" aria-label="選択肢"></div>' +
+    '<textarea id="eex" style="min-height:3em;margin-top:.4rem" placeholder="解説(任意)" aria-label="解説">' + esc(p.ex || "") + "</textarea>" +
+    (other ? '<input id="ereason" placeholder="直す理由(必ず書く。' + esc(nameBy(p.by)) + 'に届く)" aria-label="直す理由" style="margin-top:.4rem;width:100%">' : "") +
+    '<p class="note" style="margin:.3rem 0 0">答えか選択肢を変えると、それまでに解いた人の結果は消える。</p><div class="ctl"><button type="button" class="btn sm" data-psave="' + p.id + '">直す</button><button type="button" class="btn ghost sm" id="pcancel">やめる</button></div></div>';
+}
 /* ═════ 問題 ═════ */
-function probCard(p, big){
-  const r = (p.res || {})[me()], answered = !!r, ch = p.choices || [];
-  const n = Object.keys(p.res || {}).length, right = Object.values(p.res || {}).filter(x => x.ok).length;
-  return '<div class="' + (big ? "" : "req") + '"><div class="top"><span class="pill doing">' + esc(p.sub) + '</span><span class="note">' + esc(nameBy(p.by)) + "の問題 ・ " + ago(p.at) + "</span></div>" +
-    '<div style="font-size:' + (big ? "1.15rem" : ".95rem") + ';font-weight:700;margin:.4rem 0">' + esc(p.q) + "</div>" +
-    (ch.length ? '<div class="q"><div class="opts">' + ch.map(c => '<button type="button" data-pans="' + p.id + '" data-v="' + esc(c) + '"' + (answered ? " disabled" : "") + ' class="' + (answered ? (c === p.a ? "right" : c === r.ans ? "wrong" : "") : "") + '">' + esc(c) + "</button>").join("") + "</div></div>"
-      : (answered ? "" : '<div class="ctl"><button type="button" class="btn ghost sm" data-pshow="' + p.id + '">答えを見る</button></div>')) +
-    (answered && r.decided ? '<div class="ans ' + (r.ok ? "up" : "down") + '">' + (r.ok ? "正解!" : "答えは " + esc(p.a)) + "</div>" + (p.ex ? '<div class="reply">解説:' + esc(p.ex) + "</div>" : "") : "") +
-    (answered && !ch.length && !r.decided ? '<div class="ctl"><span class="note">答え:' + esc(p.a) + '</span><button type="button" class="btn sm" data-pself="' + p.id + '" data-v="1">できた</button><button type="button" class="btn ghost sm" data-pself="' + p.id + '" data-v="0">できなかった</button></div>' : "") +
-    '<div class="note" style="margin-top:.3rem">解いた人 ' + n + "人 ・ 正解 " + right + "人</div></div>";
+/* ═════ 問題を解く ═════
+   ・解いた記録は att に [問題, 人, 正解なら1, 時刻] の小さな形で残す(30日でけずる)
+   ・今日正解した問題は、今日はもう出ない(明日以降にまた出る)。まちがえた問題は、今日のうちにまた出ることがある
+   ・問題ごとに直近10回の結果(last)と、通算(tot)を持つ。人ごとの通算(st)はランキングに使う */
+const myAtt = () => (S.att || []).filter(a => a[1] === me());
+const correctToday = pid => myAtt().some(a => a[0] === pid && a[2] === 1 && a[3] >= dayStart());
+const canSolve = p => ok_(p.by) && !correctToday(p.id);
+const totOf = p => p.tot || (() => { const R = Object.values(p.res || {}).filter(x => x.decided); return { n: R.length, c: R.filter(x => x.ok).length }; })();
+let cur = null;   // 今解いている問題 { pid, ans, ok, decided, shown }
+function pickNext(exceptId){
+  const L = S.probs.filter(p => canSolve(p) && (!randLv || (p.lv || 2) === randLv) && p.id !== exceptId); if (!L.length) return null;
+  const mine = myAtt(), last = pid => { let r = null; for (const a of mine) if (a[0] === pid) r = a; return r; };
+  const rank = p => { const l = last(p.id); return !l ? 0 : l[2] === 0 ? 1 : 2; };   // まだ解いていない → まちがえた → 前の日に正解した、の順
+  const best = Math.min(...L.map(rank)), C = L.filter(p => rank(p) === best);
+  return (best === 0 ? C.sort((a, b) => b.at - a.at).slice(0, 3) : C)[Math.floor(Math.random() * Math.min(best === 0 ? 3 : C.length, C.length))].id;
+}
+function recentLine(p){ const L = p.last || [], T = totOf(p); if (!L.length && !T.n) return "まだ誰も解いていない";
+  return (L.length ? "直近" + L.length + "回の正解率 <b>" + Math.round(L.filter(x => x).length / L.length * 100) + "%</b>" : "") + (T.n ? (L.length ? " ・ " : "") + "みんなの平均正答率 <b>" + Math.round(T.c / T.n * 100) + "%</b>(通算" + T.n + "回)" : ""); }
+function probCard(p){
+  if (editProb === p.id && canEditProb(p)) return probEditForm(p);
+  const c = cur && cur.pid === p.id ? cur : null, done = c && c.decided, ch = p.choices || [];
+  return '<div class="top"><span class="pill doing">' + esc(p.sub) + '</span><span class="note">' + esc(nameBy(p.by)) + "の問題 ・ " + lvTag(p) + "</span></div>" +
+    '<div class="note" style="margin-top:.3rem">' + recentLine(p) + "</div>" +
+    '<div style="font-size:1.15rem;font-weight:700;margin:.5rem 0;white-space:pre-wrap">' + esc(p.q) + "</div>" +
+    (ch.length ? '<div class="q"><div class="opts">' + ch.map(o => '<button type="button" data-pans="' + p.id + '" data-v="' + esc(o) + '"' + (done ? " disabled" : "") + ' class="' + (done ? (o === p.a ? "right" : o === c.ans ? "wrong" : "") : "") + '">' + esc(o) + "</button>").join("") + "</div></div>"
+      : (c && c.shown ? "" : '<div class="ctl"><button type="button" class="btn ghost sm" data-pshow="' + p.id + '">答えを見る</button></div>')) +
+    (c && c.shown && !done ? '<div class="ctl"><span class="note">答え:' + esc(p.a) + '</span><button type="button" class="btn sm" data-pself="' + p.id + '" data-v="1">できた</button><button type="button" class="btn ghost sm" data-pself="' + p.id + '" data-v="0">できなかった</button></div>' : "") +
+    (done ? '<div class="ans ' + (c.ok ? "up" : "down") + '">' + (c.ok ? "正解!" : "答えは " + esc(p.a)) + "</div>" + (p.ex ? '<div class="reply">解説:' + esc(p.ex) + "</div>" : "") +
+      '<p class="note" style="margin:.3rem 0 0">' + (c.ok ? "正解した問題は、明日以降にまた出る。" : "まちがえた問題は、今日のうちにまた出ることがある。") + "</p>" +
+      '<div class="ctl"><button type="button" class="btn" id="pnext">次の問題</button></div>' : "") +
+    (canEditProb(p) ? '<div class="ctl"><button type="button" class="linkx" data-pedit="' + p.id + '">直す</button><button type="button" class="linkx" data-pdel="' + p.id + '">消す</button>' + (p.by !== me() ? '<span class="note">(管理者として)</span>' : "") + "</div>" : "");
+}
+function todayList(){
+  const T = myAtt().filter(a => a[3] >= dayStart()).slice().reverse(); if (!T.length) return "";
+  const ok1 = T.filter(a => a[2] === 1).length;
+  return '<details class="sect" style="padding:.6rem .9rem"><summary style="cursor:pointer;font-weight:700">今日解いた問題 ' + T.length + "問(正解 " + ok1 + ')<span class="note"> ・ 日付が変わると消える</span></summary>' +
+    T.map(a => { const p = S.probs.find(x => x.id === a[0]); const d = new Date(a[3]);
+      return '<div class="book"><span style="color:var(--' + (a[2] ? "ok" : "shu") + ');font-weight:700">' + (a[2] ? "○" : "×") + "</span><span>" + esc(p ? p.q.slice(0, 40) + (p.q.length > 40 ? "…" : "") : "(消された問題)") + '</span><span class="by">' + d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0") + "</span></div>"; }).join("") + "</details>";
 }
 function problems(){
-  const list = S.probs.filter(p => ok_(p.by)).sort((a, b) => b.at - a.at), today = list[0];
+  if (cur && !S.probs.some(p => p.id === cur.pid)) cur = null;
+  if (!cur) { const id = pickNext(); if (id) cur = { pid: id }; }
+  const p = cur && S.probs.find(x => x.id === cur.pid), any = S.probs.some(x => ok_(x.by));
   let pick = "";
-  if (randPick && randPick.kind === "prob") { const p = S.probs.find(x => x.id === randPick.id); if (p) pick = probCard(p, true); }
   if (randPick && randPick.kind === "book") { const b = S.books.find(x => x.id === randPick.id); if (b) { const done = S.bookLog.find(x => x.who === me() && x.book === b.id && x.no === randPick.no && x.at > Date.now() - 6e5);
     pick = '<div class="pick"><div class="note">' + esc(nameBy(b.by)) + 'の問題集から</div><div class="big">' + esc(b.name) + " " + esc(b.kind) + " " + randPick.no + '</div><div class="note">' + esc(b.sub) + "</div>" +
       (done ? '<div class="ans ' + (done.ok ? "up" : "down") + '">' + (done.ok ? "解けた" : "解けなかった") + "</div>" : '<div class="ctl" style="justify-content:center"><button type="button" class="btn sm" data-bookdone="1">解けた</button><button type="button" class="btn ghost sm" data-bookdone="0">解けなかった</button></div>') + "</div>"; } }
-  return '<div class="sect"><h3>今日の1問<small>いちばん新しい問題</small></h3>' + (today ? probCard(today, true) : '<p class="empty">まだ問題がない。「出す」から出してみて。</p>') + "</div>" +
-    '<div class="sect"><h3>ランダムで1問<small>みんなが登録したものから</small></h3><p class="note" style="margin:0 0 .3rem"><b>みんなの問題</b>は、メンバーが「出す」タブで出した問題。<b>みんなの問題集</b>は、メンバーが登録した問題集で、「青チャート数学IA 例題87」のように解く場所が出る(手元の問題集で解いて、自分で丸つけ)。</p><div class="ctl"><button type="button" class="btn sm" data-rand="prob">みんなの問題から</button><button type="button" class="btn sm" data-rand="book">みんなの問題集から</button></div>' + (pick ? '<div style="margin-top:.6rem">' + pick + "</div>" : "") + "</div>" +
-    (list.length > 1 ? '<div class="sect"><h3>前の問題</h3>' + list.slice(1, 30).map(p => probCard(p, false)).join("") + "</div>" : "");
+  return '<div class="sect"><h3>問題を解く<small>みんなの問題から1問ずつ</small></h3><p class="note" style="margin:0 0 .3rem"><b>みんなの問題</b>は、メンバーが「出す」タブで出した問題。正解した問題は明日以降にまた出て、まちがえた問題は今日のうちにまた出ることがある。</p><div class="plans" role="group" aria-label="難易度でしぼる">' + [[0, "全部"], [1, "★基礎"], [2, "★★標準"], [3, "★★★応用"], [4, "★★★★発展"], [5, "★★★★★難関"]].map(([v, l]) => '<button type="button" data-randlv="' + v + '" aria-pressed="' + (randLv === v) + '">' + l + "</button>").join("") + "</div>" +
+      (p ? probCard(p) : '<p class="empty">' + (any ? (randLv ? "この難易度で今日解ける問題は、もうない。" : "今日解ける問題は、全部正解した! 新しい問題を出すか、また明日。") : "まだ問題がない。「出す」から出してみて。") + "</p>") +
+      (p && !(cur && cur.decided) ? '<div class="ctl"><button type="button" class="linkx" id="pskip">この問題はとばす</button></div>' : "") + "</div>" +
+    todayList() +
+    '<div class="sect"><h3>みんなの問題集から1問<small>手元の問題集で解く</small></h3><p class="note" style="margin:0 0 .3rem">メンバーが登録した問題集から「青チャート数学IA 例題87」のように解く場所が出る。手元で解いて、自分で丸つけ。</p><div class="ctl"><button type="button" class="btn sm" data-rand="book">問題集から出す</button></div>' + (pick ? '<div style="margin-top:.6rem">' + pick + "</div>" : "") + "</div>";
 }
-function make(){
-  return '<div class="sect"><h3>問題を出す</h3><div class="chal-form"><select id="psub" aria-label="科目">' + SUBJECTS.map(x => "<option>" + x + "</option>").join("") + '</select></div>' +
+/* 自分の問題(出すタブ):直す・消すはここで。管理者には全員の問題も出る */
+function myProbList(){
+  const row = p => editProb === p.id && canEditProb(p) ? probEditForm(p) : '<div class="book"><span class="note" style="white-space:nowrap">' + lvStars(p.lv || 2) + '</span><span>' + esc(p.q.slice(0, 50)) + (p.q.length > 50 ? "…" : "") + '<br><span class="note">' + (p.by !== me() ? esc(nameBy(p.by)) + " ・ " : "") + recentLine(p) + " ・ 通算 " + totOf(p).n + "回</span></span>" +
+    '<span class="by"><button type="button" class="linkx" data-pedit="' + p.id + '">直す</button> <button type="button" class="linkx" data-pdel="' + p.id + '">消す</button></span></div>';
+  const mine = S.probs.filter(p => p.by === me()).sort((a, b) => b.at - a.at), others = isAdmin() ? S.probs.filter(p => p.by !== me()).sort((a, b) => b.at - a.at) : [];
+  return '<details class="sect" style="padding:.6rem .9rem"' + (editProb && mine.some(p => p.id === editProb) ? " open" : "") + '><summary style="cursor:pointer;font-weight:700">自分が出した問題 ' + mine.length + "問</summary>" + (mine.length ? mine.map(row).join("") : '<p class="empty">まだない。</p>') + "</details>" +
+    (isAdmin() && others.length ? '<details class="sect" style="padding:.6rem .9rem"' + (editProb && others.some(p => p.id === editProb) ? " open" : "") + '><summary style="cursor:pointer;font-weight:700">みんなの問題 ' + others.length + '問<span class="note"> ・ 管理者だけ。直すときは理由が要る</span></summary>' + others.map(row).join("") + "</details>" : "");
+}
+/* 解いた記録を残す(問題の直近10回・通算、人の通算も一緒に) */
+function recordAnswer(pid, okk){
+  return mutate(D => { const now = Date.now(); D.att = (D.att || []).filter(a => a[3] > now - 3 * 864e5); D.att.push([pid, me(), okk ? 1 : 0, now]);
+    const dk = dayKey(now); D.daily = D.daily || {}; const md = D.daily[me()] = D.daily[me()] || {}; const c0 = md[dk] || [0, 0]; md[dk] = [c0[0] + 1, c0[1] + (okk ? 1 : 0)];
+    Object.keys(md).forEach(k => { if (k < dayKey(now - 40 * 864e5)) delete md[k]; });
+    const p1 = D.probs.find(x => x.id === pid); if (p1) { p1.last = (p1.last || []).concat([okk ? 1 : 0]).slice(-10); const t0 = totOf(p1); p1.tot = { n: t0.n + 1, c: t0.c + (okk ? 1 : 0) }; }
+    const m = D.members.find(x => x.id === me()); if (m) { const s0 = m.st || { s: 0, c: 0 }; m.st = { s: s0.s + 1, c: s0.c + (okk ? 1 : 0) }; } }, "解答");
+}
+/* 日ごとの合計(人ごと)。ランキングとまとめに使う */
+const dayKey = t => { const d = new Date(t); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+function solvedSince(who, from){ const md = (S.daily || {})[who] || {}, fk = dayKey(from); let n = 0, c = 0; Object.entries(md).forEach(([k, v]) => { if (k >= fk) { n += v[0]; c += v[1]; } });
+  if (!Object.keys(md).length) { const A = (S.att || []).filter(a => a[1] === who && a[3] >= from); n = A.length; c = A.filter(a => a[2]).length; } return { n, c }; }
+/* ═════ ランキング ═════ */
+let rankRange = lsGet("study-rankrange", 7);
+function ranking(){
+  const from = rankRange ? Date.now() - rankRange * 864e5 : 0, L = liveMembers();
+  const made = L.map(m => ({ m, v: S.probs.filter(p => p.by === m.id && p.at >= from).length })).sort((a, b) => b.v - a.v);
+  const solved = L.map(m => { if (!rankRange) { const st = m.st || { s: 0, c: 0 }; return { m, v: st.s, c: st.c }; } const t = solvedSince(m.id, from); return { m, v: t.n, c: t.c }; }).sort((a, b) => b.v - a.v || b.c - a.c);
+  const medal = i => ["🥇", "🥈", "🥉"][i] || String(i + 1);
+  const list = (rows, unit, extra) => rows.filter(r => r.v > 0).length ? '<div class="rank">' + rows.filter(r => r.v > 0).map((r, i) => '<span class="' + (i === 0 ? "w" : "") + '">' + medal(i) + '</span><span class="' + (r.m.id === me() ? "w" : "") + '">' + esc(r.m.name) + "</span><span>" + r.v + unit + "</span><span>" + (extra ? extra(r) : "") + "</span>").join("") + "</div>" : '<p class="empty">まだいない。</p>';
+  return '<div class="sect"><h3>ランキング</h3><div class="plans" role="group" aria-label="期間">' + [[7, "この7日"], [30, "この30日"], [0, "これまで全部"]].map(([v, l]) => '<button type="button" data-rankr="' + v + '" aria-pressed="' + (rankRange === v) + '">' + l + "</button>").join("") + "</div></div>" +
+    '<div class="sect"><h3>問題をいちばん作った人</h3>' + list(made, "問") + "</div>" +
+    '<div class="sect"><h3>問題をいちばん解いた人</h3>' + list(solved, "問", r => "正解率 " + (r.v ? Math.round(r.c / r.v * 100) : 0) + "%") + '<p class="note" style="margin:.4rem 0 0">勝負の問題は数えない。同じ問題をまちがえて解き直した分も1回として数える。</p></div>';
+}
+
+function make(){ return makeForm() + myProbList(); }
+function makeForm(){
+  return '<div class="sect"><h3>問題を出す</h3><div class="chal-form"><select id="psub" aria-label="科目">' + SUBJECTS.map(x => "<option>" + x + "</option>").join("") + '</select>' + lvSelect("plv", 2) + '</div>' +
     '<textarea id="pq" placeholder="問題文" style="min-height:4em;margin-top:.4rem" aria-label="問題文"></textarea><div class="chal-form"><input id="pa" placeholder="答え" aria-label="答え"><input id="pc" placeholder="選択肢(任意・読点区切り)" aria-label="選択肢"></div>' +
     '<textarea id="pex" placeholder="解説(任意)" style="min-height:3em;margin-top:.4rem" aria-label="解説"></textarea><div style="margin-top:.5rem;display:flex;gap:.4rem;flex-wrap:wrap"><button type="button" class="btn sm" id="sendp">出題する</button><button type="button" class="btn ghost sm" id="drillp">計算の問題を1問作る</button></div>' +
     '<p class="note" style="margin:.5rem 0 0">選択肢を書くとタップで答えられる問題に、書かないと「答えを見て自分で丸つけ」の問題になる。</p></div>' +
@@ -597,7 +710,7 @@ function admin(){
 function adminDevice(){ return '<div class="sect"><h3>スマホなど別の端末で使う</h3><ol style="margin:0;padding-left:1.3rem;font-size:.9rem"><li>下のリンクを、使いたい端末で開く(自分あてにLINEなどで送ると楽)</li><li>「<b>前に入ったことがある</b>」で自分の名前(管理者)を選ぶ</li><li>決めた合言葉を入れる → 管理者のまま入れる</li></ol>' +
     '<div class="chal-form" style="margin-top:.4rem"><input id="invlink" readonly value="' + esc(inviteLink()) + '" aria-label="自分用のリンク"><button type="button" class="btn sm" id="copylink">コピー</button></div>' +
     '<p class="note" style="margin:.4rem 0 0">「はじめて入る」から入ると、別のアカウントが増えてしまうので注意。体制を届ける仕事(「最新にする」)と「管理者だけ」の意見を読むのは、体制のデータにつないだ端末で行う。</p></div>' +
-    '<div class="sect"><h3>この端末</h3><p class="note">版 ' + APP_VERSION + " ・ " + esc(conf.repo) + '</p><button type="button" class="btn ghost sm" id="logout">この端末から出る</button></div>'; }
+    '<div class="sect"><h3>この端末</h3><p class="note">版 ' + APP_VERSION + " ・ " + esc(conf.repo) + " ・ データの大きさ " + Math.round(JSON.stringify(S).length / 1024) + " KB" + (JSON.stringify(S).length > 700 * 1024 ? '<br><b style="color:var(--shu)">大きくなってきた(1MBを超えると読めなくなる)。相談して</b>' : "") + '</p><button type="button" class="btn ghost sm" id="logout">この端末から出る</button></div>'; }
 
 /* ═══════════ 体制(管理者が選んだ人にだけ見える) ═══════════
    ・端末ごとに鍵の組(ECDH)を自動で作る。公開鍵だけを study.json に置く
@@ -646,7 +759,7 @@ async function dec(key, box, raw){ const pt = await crypto.subtle.decrypt({ name
 /* 自分の公開鍵を、メンバーの記録に載せる(端末ごと。最新3つまで) */
 async function publishMyKey(){
   if (!me()) return; const k = await ensureKeys(), m = S.members.find(x => x.id === me()); if (!m || (m.pubs || []).some(p => p.kid === k.kid)) return;
-  await mutate(D => { const mm = D.members.find(x => x.id === me()); if (!mm) return false; mm.pubs = (mm.pubs || []).filter(p => p.kid !== k.kid).concat([{ kid: k.kid, jwk: k.pub }]).slice(-3); }, "端末の鍵");
+  await mutate(D => { const mm = D.members.find(x => x.id === me()); if (!mm) return false; mm.pubs = (mm.pubs || []).filter(p => p.kid !== k.kid).concat([{ kid: k.kid, jwk: k.pub }]).slice(-3); }, "端末の鍵", { wait: true });
 }
 
 /* ───── 管理者:体制のデータを集める ───── */
@@ -719,7 +832,7 @@ async function exportSys(){
         grants[m.id] = { preset: p.id, okid: k.kid, at: Date.now(), keys };
       }
     }
-    await mutate(D => { D.grants = grants; D.ownerPub = { kid: k.kid, jwk: k.pub }; D.sysAt = Date.now(); }, "体制の鍵");
+    await mutate(D => { D.grants = grants; D.ownerPub = { kid: k.kid, jwk: k.pub }; D.sysAt = Date.now(); }, "体制の鍵", { wait: true });
     toast("体制を最新にした"); return true;
   } catch (e) { sysSourceErr = e.message; toast(e.message); return false; }
   finally { exporting = false; }
@@ -921,7 +1034,7 @@ function summary(){
   const rows = liveMembers().map(m => {
     const mine = SS.filter(x => x.who === m.id), bySub = {}; mine.forEach(x => { bySub[x.sub] = (bySub[x.sub] || 0) + minsIn(x.start, x.end, from, to); });
     const total = Object.values(bySub).reduce((a, b) => a + b, 0);
-    const pr = S.probs.map(p => (p.res || {})[m.id]).filter(r => r && r.decided && (r.at || 0) >= from), prOk = pr.filter(r => r.ok).length;
+    const pt = solvedSince(m.id, from), pr = { length: pt.n }, prOk = pt.c;
     const bk = (S.bookLog || []).filter(x => x.who === m.id && x.at >= from), bkOk = bk.filter(x => x.ok).length;
     const qAsk = S.qs.filter(q => q.by === m.id && q.at >= from).length, qAns = S.qs.reduce((a, q) => a + q.ans.filter(x => x.by === m.id && x.at >= from).length, 0);
     const bt = S.battles.filter(b => b.members.includes(m.id) && b.at >= from), btWin = bt.filter(b => b.state === "done" && (b.type === "reversi" ? b.winner === m.id : (() => { const r = b.results || {}; const best = b.members.filter(x => r[x]).sort((x, y) => r[y].score - r[x].score || r[x].ms - r[y].ms)[0]; return best === m.id; })())).length;
@@ -993,7 +1106,7 @@ function ideasTab(){
 
 /* ═════ 全体 ═════ */
 function tabsList(){ const t = [["guide", "説明書"], ["room", "作業部屋"], ["battle", "勝負"], ["board", "質問板"], ["probs", "問題"], ["make", "出す"]];
-  t.push(["ideas", "意見箱"]);
+  t.push(["rank", "ランキング"]); t.push(["ideas", "意見箱"]);
   if (!isAdmin() && (S.grants || {})[me()]) t.push(["sys", nameBy(S.admin) + "の体制"]); if (isAdmin()) { t.push(["sum", "まとめ"]); t.push(["admin", "管理"]); } return t; }
 function badge(k){
   if (k === "room") { if ((S.events || []).some(evNow)) return '<span class="n">勉強会中</span>'; if ((S.events || []).some(e => evSoon(e) && (e.going || []).includes(me()))) return '<span class="n">もうすぐ</span>'; const n = Object.keys(liveRoom()).length; return n ? '<span class="n">●' + n + "</span>" : ""; }
@@ -1016,11 +1129,11 @@ function render(){
   if (!me() || !S.members.some(m => m.id === me())) { app.innerHTML = joinScreen(); const f = $("lpass") || $("jname"); if (f) f.focus(); return; }
   setTimeout(showActiveTabs, 0);
   const T = tabsList(); if (!T.some(([k]) => k === tab)) tab = "guide";
-  const P = { guide, room, battle: battles, board, probs: problems, make, admin: () => admin() + adminSys() + adminDevice(), sys: sysArea, sum: summaryTab, ideas: ideasTab };
+  const P = { guide, room, battle: battles, board, probs: problems, make, admin: () => admin() + adminSys() + adminDevice(), sys: sysArea, sum: summaryTab, ideas: ideasTab, rank: ranking };
   if ((S.members.find(m => m.id === me()) || {}).mustChange) { app.innerHTML = changeScreen(true); const f = $("np1"); if (f) f.focus(); return; }
-  app.innerHTML = '<div class="mast"><h1>' + (tab === "sys" || (tab === "admin" && previewPreset) ? esc(nameBy(S.admin)) + "の体制" : "勉強の場") + "</h1><small>" + esc(nameBy(me())) + ' <button type="button" class="linkx" id="showpass" aria-label="自分の合言葉を見る" title="自分の合言葉を見る" style="text-decoration:none;font-size:1rem">🔑</button></small></div>' +
+  app.innerHTML = '<div class="mast"><h1>' + (tab === "sys" || (tab === "admin" && previewPreset) ? esc(nameBy(S.admin)) + "の体制" : "勉強の場") + "</h1><small>" + esc(nameBy(me())) + ' <button type="button" class="linkx" id="showpass" aria-label="自分の合言葉を見る" title="自分の合言葉を見る" style="text-decoration:none;font-size:1rem">🔑</button> <span id="syncing" class="note" ' + (pendingFns.length ? "" : "hidden") + '>送信中…</span></small></div>' +
     (passShown ? '<div class="lock"><span class="ic" aria-hidden="true">🔑</span><span>' + (myPass() ? "君の合言葉:<b style=\"font-size:1.1rem;letter-spacing:.05em\">" + esc(myPass()) + "</b>(この端末にだけ保存。人に見せない)" : "この端末には合言葉が残っていない。説明書のいちばん下「自分のアカウント」で新しい合言葉に変えると、ここで見られるようになる") + ' <button type="button" class="linkx" id="hidepass">隠す</button></span></div>' : "") +
-    '<nav class="tabs" aria-label="勉強の場">' + T.map(([k, l]) => '<button type="button" data-tab="' + k + '" aria-pressed="' + (tab === k) + '">' + l + badge(k) + "</button>").join("") + "</nav>" + P[tab]();
+    noticesHtml() + '<nav class="tabs" aria-label="勉強の場">' + T.map(([k, l]) => '<button type="button" data-tab="' + k + '" aria-pressed="' + (tab === k) + '">' + l + badge(k) + "</button>").join("") + "</nav>" + P[tab]();
 }
 async function afterTab(){
   if (tab === "ideas") { await decryptIdeas(); lsSet("study-ideaseen", (S.ideas || []).filter(x => x.by === me() && x.reply).map(x => x.id + ":" + (x.reply.at || 0))); keepY(); }
@@ -1029,7 +1142,7 @@ async function afterTab(){
 }
 function showActiveTabs(){ document.querySelectorAll("nav.tabs").forEach(n => { const b = n.querySelector('[aria-pressed="true"]'); if (b) n.scrollLeft = Math.max(0, b.offsetLeft - n.clientWidth / 2 + b.offsetWidth / 2); }); }
 const keepY = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
-async function refresh(){ if (!conf || busy || playing) return; const a = document.activeElement; if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA") && a.value) return;
+async function refresh(){ if (!conf || busy || playing || pendingFns.length) return; const a = document.activeElement; if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA") && a.value) return;
   try { await load(); loadErr = ""; if (tab === "ideas") await decryptIdeas(); if (isAdmin() && ownerConf && (S.presets || []).length && needsExport() && !exporting) exportSys().then(() => keepY());
     const g = (S.grants || {})[me()]; if (sysData && g && g.at !== sysGrantAt) { sysData = null; if (tab === "sys") { await loadSysData(); } } if (tab === "sys") await decryptMine(); if (tab === "admin") await decryptInbox(); keepY(); } catch (e) { loadErr = e.message; if (!loaded) render(); } }
 
@@ -1045,7 +1158,7 @@ document.addEventListener("click", async e => {
     if (!n) { gateErr = "名前を入れてね"; snd("error"); render(); return; } if (a.length < 4) { gateErr = "合言葉は4文字以上にしてね"; snd("error"); render(); return; } if (a !== b) { gateErr = "2つの合言葉が違う"; snd("error"); render(); return; }
     const id = "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), salt = Math.random().toString(36).slice(2, 10), ph = await hash(a, salt), by = conf.from || null;
     const kidNow = (await ensureKeys()).kid;
-    const okk = await mutate(D => { if ((D.bannedKids || []).includes(kidNow) && !(((D.members.find(x => x.id === D.admin) || {}).pubs || []).some(p1 => p1.kid === kidNow))) { gateErr = "この端末からは入れない(追放されている)"; return false; } if (D.members.some(m => m.name === n)) { gateErr = "その名前はもう使われてる"; return false; } D.members.push({ id, name: n, salt, ph, by, at: Date.now() }); if (!D.admin) D.admin = id; }, "メンバー:" + n);
+    const okk = await mutate(D => { if ((D.bannedKids || []).includes(kidNow) && !(((D.members.find(x => x.id === D.admin) || {}).pubs || []).some(p1 => p1.kid === kidNow))) { gateErr = "この端末からは入れない(追放されている)"; return false; } if (D.members.some(m => m.name === n)) { gateErr = "その名前はもう使われてる"; return false; } D.members.push({ id, name: n, salt, ph, by, at: Date.now() }); if (!D.admin) D.admin = id; }, "メンバー:" + n, { wait: true });
     if (okk) { conf.me = id; delete conf.from; lsSet(CONF_KEY, conf); rememberPass(id, a); gateErr = ""; tab = "guide"; snd("open"); await publishMyKey(); } else if (!gateErr) { gateErr = "入れなかった:" + (lastErr || "理由が分からない。もう一度押して"); snd("error"); } render(); return; }
   if (t.id === "loginbtn") { const m = S.members.find(x => x.id === $("lname").value); if (!m || m.banned) return;
     if ((await hash($("lpass").value, m.salt)) === m.ph) { conf.me = m.id; lsSet(CONF_KEY, conf); rememberPass(m.id, $("lpass").value); gateErr = ""; snd("open"); await publishMyKey(); } else { gateErr = "合言葉が違う"; snd("error"); } render(); return; }
@@ -1073,6 +1186,7 @@ document.addEventListener("click", async e => {
   if (d.evdel) { if (confirm("この勉強会を取り消す?")) { await mutate(D => { D.events = (D.events || []).filter(x => !(x.id === d.evdel && x.by === me())); }, "勉強会を取り消す"); snd("remove"); keepY(); } return; }
   if (d.evjoinroom) { const e = (S.events || []).find(x => x.id === d.evjoinroom), sub = e && e.sub !== "なんでも" ? e.sub : "その他";
     if (await mutate(D => { D.room.on[me()] = { sub, what: e ? e.title : "", start: Date.now(), plan: e ? Math.max(1, Math.round((e.start + e.dur * 60000 - Date.now()) / 60000)) : 0 }; const ev = (D.events || []).find(x => x.id === d.evjoinroom); if (ev && !(ev.going || []).includes(me())) (ev.going = ev.going || []).push(me()); }, "勉強会に参加")) snd("open"); keepY(); return; }
+  if (d.rankr !== undefined && d.rankr !== "") { rankRange = +d.rankr; lsSet("study-rankrange", rankRange); snd("tab"); keepY(); return; }
   if (d.sumr) { sumRange = +d.sumr; lsSet("study-sumrange", sumRange); snd("tab"); keepY(); return; }
   // 作業部屋
   if (d.plan !== undefined && d.plan !== "") { roomPlan = +d.plan; keepY(); return; }
@@ -1085,19 +1199,45 @@ document.addEventListener("click", async e => {
   if (d.ans) { const inp = document.querySelector('[data-ansin="' + d.ans + '"]'), v = inp && inp.value.trim(); if (!v) return; if (await mutate(D => { const q = D.qs.find(x => x.id === d.ans); if (!q) return false; q.ans.push({ by: me(), text: v, at: Date.now() }); }, "答え")) snd("save"); keepY(); return; }
   if (d.solve) { if (await mutate(D => { const q = D.qs.find(x => x.id === d.solve); if (!q) return false; q.solved = true; }, "解決")) snd("done"); keepY(); return; }
   // 問題
-  if (d.pans) { const id = d.pans, v = d.v; let okk = false; if (await mutate(D => { const p = D.probs.find(x => x.id === id); if (!p) return false; p.res = p.res || {}; if (p.res[me()]) return false; okk = v === p.a; p.res[me()] = { ans: v, ok: okk, decided: true, at: Date.now() }; }, "解答")) snd(okk ? "done" : "error"); keepY(); return; }
-  if (d.pshow) { const id = d.pshow; await mutate(D => { const p = D.probs.find(x => x.id === id); if (!p) return false; p.res = p.res || {}; if (p.res[me()]) return false; p.res[me()] = { ans: "", ok: false, decided: false }; }, "答えを見る"); keepY(); return; }
-  if (d.pself) { const id = d.pself, ok1 = d.v === "1"; if (await mutate(D => { const p = D.probs.find(x => x.id === id); if (!p) return false; p.res[me()] = { ans: "", ok: ok1, decided: true, at: Date.now() }; }, "丸つけ")) snd(ok1 ? "done" : "toggleOff"); keepY(); return; }
-  if (d.rand) { const PL = S.probs.filter(p => ok_(p.by)), BL = S.books.filter(b => ok_(b.by));
-    if (d.rand === "prob") { if (!PL.length) { toast("まだ問題がない"); return; } randPick = { kind: "prob", id: PL[Math.floor(Math.random() * PL.length)].id }; }
+  if (d.pans) { const id = d.pans, v = d.v, p0 = S.probs.find(x => x.id === id); if (!p0 || (cur && cur.pid === id && cur.decided)) return;
+    const okk = v === p0.a; cur = { pid: id, ans: v, ok: okk, decided: true }; snd(okk ? "done" : "error"); recordAnswer(id, okk); keepY(); return; }
+  if (d.pshow) { cur = { pid: d.pshow, shown: true }; keepY(); return; }
+  if (d.pself) { const id = d.pself, okk = d.v === "1"; cur = { pid: id, ok: okk, decided: true, shown: true }; snd(okk ? "done" : "toggleOff"); recordAnswer(id, okk); keepY(); return; }
+  if (t.id === "pnext" || t.id === "pskip") { const was = cur && cur.pid, id = pickNext(was); cur = id ? { pid: id } : null; snd("tab"); keepY(); return; }
+  if (d.randlv !== undefined && d.randlv !== "") { randLv = +d.randlv; if (!(cur && cur.decided)) cur = null; keepY(); return; }
+  if (d.rand) { const PL = S.probs.filter(p => ok_(p.by) && (!randLv || (p.lv || 2) === randLv)), BL = S.books.filter(b => ok_(b.by));
+    if (d.rand === "prob") { const id = pickNext(); cur = id ? { pid: id } : null; keepY(); return; }
     else { if (!BL.length) { toast("まだ問題集が登録されてない"); return; } const b = BL[Math.floor(Math.random() * BL.length)]; randPick = { kind: "book", id: b.id, no: b.from + Math.floor(Math.random() * (b.to - b.from + 1)) }; } snd("open"); keepY(); return; }
-  if (d.bookdone !== undefined && d.bookdone !== "" && randPick) { const rp = randPick, ok1 = d.bookdone === "1"; if (await mutate(D => { D.bookLog.push({ who: me(), book: rp.id, no: rp.no, ok: ok1, at: Date.now() }); D.bookLog = D.bookLog.slice(-2000); }, "問題集")) snd(ok1 ? "done" : "toggleOff"); keepY(); return; }
+  if (d.bookdone !== undefined && d.bookdone !== "" && randPick) { const rp = randPick, ok1 = d.bookdone === "1"; if (await mutate(D => { D.bookLog.push({ who: me(), book: rp.id, no: rp.no, ok: ok1, at: Date.now() }); D.bookLog = D.bookLog.filter(x => x.at > Date.now() - 30 * 864e5).slice(-2000); }, "問題集")) snd(ok1 ? "done" : "toggleOff"); keepY(); return; }
+  // 問題を直す・消す
+  if (d.pedit) { editProb = d.pedit; keepY(); const f = $("eq"); if (f) f.focus(); return; }
+  if (t.id === "pcancel") { editProb = null; keepY(); return; }
+  if (d.psave) { const id = d.psave, p0 = S.probs.find(x => x.id === id); if (!p0 || !canEditProb(p0)) return;
+    const other = p0.by !== me(), reason = other ? ($("ereason").value || "").trim() : "";
+    if (other && !reason) { toast("ほかの人の問題を直すときは、理由を書く"); $("ereason").focus(); return; }
+    const q = $("eq").value.trim(), a = $("ea").value.trim(); if (!q || !a) { toast("問題文と答えは空にできない"); return; }
+    const ch = $("ec").value.split(/[、,]/).map(x => x.trim()).filter(Boolean); if (ch.length && !ch.includes(a)) ch.push(a);
+    const upd = { sub: $("esub").value, lv: +$("elv").value || 2, q, a, choices: ch, ex: $("eex").value.trim() };
+    editProb = null;
+    if (await mutate(D => { const p1 = D.probs.find(x => x.id === id); if (!p1) return false; if (p1.by !== me() && !isAdmin()) return false;
+      const reset = p1.a !== upd.a || JSON.stringify(p1.choices || []) !== JSON.stringify(upd.choices); Object.assign(p1, upd); if (reset) { p1.res = {}; p1.last = []; p1.tot = { n: 0, c: 0 }; }
+      p1.edited = { by: me(), at: Date.now(), reason: reason || "" };
+      if (p1.by !== me()) { D.notices = (D.notices || []).filter(x => x.at > Date.now() - 60 * 864e5); D.notices.push({ id: "n" + Date.now().toString(36), to: p1.by, by: me(), at: Date.now(), text: "あなたの問題「" + p1.q.slice(0, 30) + (p1.q.length > 30 ? "…" : "") + "」を直しました。理由:" + reason }); } }, "問題を直す")) { snd("save"); toast(other ? "直した。理由を" + nameBy(p0.by) + "に届けた" : "直した"); }
+    keepY(); return; }
+  if (d.pdel) { const id = d.pdel, p0 = S.probs.find(x => x.id === id); if (!p0 || !canEditProb(p0)) return; const other = p0.by !== me(); let reason = "";
+    if (other) { reason = (prompt(nameBy(p0.by) + "の問題を消す理由(本人に届く)") || "").trim(); if (!reason) { toast("理由を書かないと消せない"); return; } }
+    else if (!confirm("この問題を消す?")) return;
+    if (await mutate(D => { const p1 = D.probs.find(x => x.id === id); if (!p1) return false; if (p1.by !== me() && !isAdmin()) return false; D.probs = D.probs.filter(x => x.id !== id);
+      if (p1.by !== me()) { D.notices = (D.notices || []).filter(x => x.at > Date.now() - 60 * 864e5); D.notices.push({ id: "n" + Date.now().toString(36), to: p1.by, by: me(), at: Date.now(), text: "あなたの問題「" + p1.q.slice(0, 30) + (p1.q.length > 30 ? "…" : "") + "」を消しました。理由:" + reason }); } }, "問題を消す")) { snd("remove"); toast(other ? "消した。理由を" + nameBy(p0.by) + "に届けた" : "消した"); }
+    if (randPick && randPick.id === id) randPick = null; keepY(); return; }
+  if (d.noticeok) { lsSet("study-notices-seen", seenNotices().concat([d.noticeok]).slice(-200)); snd("tab"); keepY(); return; }
   // 出す
   if (t.id === "sendp") { const q = $("pq").value.trim(), a = $("pa").value.trim(), sub = $("psub").value, ex = $("pex").value.trim(); if (!q || !a) { (q ? $("pa") : $("pq")).focus(); return; }
     const ch = $("pc").value.split(/[、,]/).map(x => x.trim()).filter(Boolean); if (ch.length && !ch.includes(a)) ch.push(a);
-    if (await mutate(D => { D.probs.push({ id: "p" + Date.now().toString(36), by: me(), sub, q, a, choices: ch, ex, at: Date.now(), res: {} }); }, "問題")) { snd("save"); tab = "probs"; lsSet("study-tab", tab); } render(); window.scrollTo(0, 0); return; }
+    const lv = +$("plv").value || 2;
+    if (await mutate(D => { D.probs.push({ id: "p" + Date.now().toString(36), by: me(), sub, q, a, choices: ch, ex, lv, at: Date.now(), res: {} }); }, "問題")) { snd("save"); toast("出した。みんなの「問題」に出る"); } render(); return; }
   if (t.id === "drillp") { const A = 12 + Math.floor(Math.random() * 80), B = 11 + Math.floor(Math.random() * 30), ans = String(A * B), opts = [ans, String(A * B + 10), String(A * B - B), String(A * (B + 1))].sort(() => Math.random() - .5);
-    if (await mutate(D => { D.probs.push({ id: "p" + Date.now().toString(36), by: me(), sub: "数学", q: A + " × " + B + " を暗算で", a: ans, choices: opts, ex: A + " × " + (B - B % 10) + " + " + A + " × " + (B % 10) + " = " + ans, at: Date.now(), res: {} }); }, "計算の問題")) { snd("save"); tab = "probs"; lsSet("study-tab", tab); } render(); window.scrollTo(0, 0); return; }
+    if (await mutate(D => { D.probs.push({ id: "p" + Date.now().toString(36), by: me(), sub: "数学", q: A + " × " + B + " を暗算で", a: ans, choices: opts, ex: A + " × " + (B - B % 10) + " + " + A + " × " + (B % 10) + " = " + ans, lv: 1, at: Date.now(), res: {} }); }, "計算の問題")) { snd("save"); toast("計算の問題を出した"); } render(); return; }
   if (t.id === "addbook") { const n = $("bname").value.trim(), f = +$("bfrom").value || 1, to = +$("bto").value || f, sub = $("bsub").value, kind = $("bkind").value.trim() || "No."; if (!n) { $("bname").focus(); return; }
     if (await mutate(D => { D.books.push({ id: "b" + Date.now().toString(36), by: me(), sub, name: n, kind, from: Math.min(f, to), to: Math.max(f, to) }); }, "問題集:" + n)) snd("save"); keepY(); return; }
   if (d.delbook) { if (confirm("この問題集を消す?")) { await mutate(D => { D.books = D.books.filter(x => !(x.id === d.delbook && x.by === me())); }, "問題集を消す"); keepY(); } return; }
@@ -1105,7 +1245,7 @@ document.addEventListener("click", async e => {
   if (t.id === "btopen") { const type = $("bttype").value, n = +$("btn").value, cap = type === "reversi" ? 2 : +$("btcap").value;
     const b = type === "reversi" ? { id: "bt" + Date.now().toString(36), host: me(), type, n: 0, cap: 2, members: [me()], state: "open", board: rvNew(), turn: 1, results: {}, at: Date.now() } : { id: "bt" + Date.now().toString(36), host: me(), type, n, cap, members: [me()], state: "open", qs: makeQs(type, n), results: {}, at: Date.now() };
     if (await mutate(D => { D.battles.push(b); D.battles = D.battles.filter(x => x.state !== "done" || x.at > Date.now() - 14 * 864e5); }, "勝負の募集")) snd("save"); keepY(); return; }
-  if (d.btjoin) { if (await mutate(D => { const b = D.battles.find(x => x.id === d.btjoin); if (!b || b.state !== "open" || b.members.includes(me())) return false; b.members.push(me()); if (b.members.length >= b.cap) b.state = "play"; }, "勝負に入る")) snd("open"); keepY(); return; }
+  if (d.btjoin) { if (await mutate(D => { const b = D.battles.find(x => x.id === d.btjoin); if (!b || b.state !== "open" || b.members.includes(me())) return false; b.members.push(me()); if (b.members.length >= b.cap) b.state = "play"; }, "勝負に入る", { wait: true })) snd("open"); keepY(); return; }
   if (d.btstart) { if (await mutate(D => { const b = D.battles.find(x => x.id === d.btstart); if (!b || b.state !== "open") return false; b.state = "play"; b.cap = b.members.length; }, "勝負を始める")) snd("open"); keepY(); return; }
   if (d.btplay) { playing = { id: d.btplay, i: 0, start: Date.now(), score: 0 }; snd("open"); render(); window.scrollTo(0, 0); const i = $("btin"); if (i) i.focus(); return; }
   if (d.btans !== undefined || t.id === "btsend") { const b = S.battles.find(x => x.id === playing.id), q = b.qs[playing.i], v = d.btans !== undefined ? d.btans : ($("btin").value || "").trim();
@@ -1120,7 +1260,7 @@ document.addEventListener("click", async e => {
     const okk = await mutate(D => { const b = D.battles.find(x => x.id === id); if (!b || b.state !== "play" || b.members.indexOf(me()) + 1 !== b.turn) { toast("もう相手の番になってる"); return false; }
       const c = b.turn, f = rvFlips(b.board, i, c); if (!f.length) return false; b.board[i] = c; f.forEach(k => { b.board[k] = c; }); b.last = i; b.passNote = "";
       const o = 3 - c; if (rvMoves(b.board, o).length) b.turn = o; else if (rvMoves(b.board, c).length) { b.turn = c; b.passNote = nameBy(b.members[o - 1]) + "は打てるところがないのでパス。"; }
-      else { b.state = "done"; fin = true; const [nb, nw] = rvCount(b.board); b.winner = nb === nw ? null : b.members[nb > nw ? 0 : 1]; } }, "リバーシ");
+      else { b.state = "done"; fin = true; const [nb, nw] = rvCount(b.board); b.winner = nb === nw ? null : b.members[nb > nw ? 0 : 1]; } }, "リバーシ", { wait: true });
     if (okk) snd(fin ? "done" : "toggleOn"); keepY(); return; }
   // 体制(メンバー)
   if (d.systab) { sysTab = d.systab; lsSet("study-systab", sysTab); if (!SL.seen.includes(sysTab)) { SL.seen.push(sysTab); saveSL(); } sysPage = "home"; render(); window.scrollTo(0, 0); snd("tab"); return; }
@@ -1164,18 +1304,18 @@ document.addEventListener("click", async e => {
   if (t.id === "changepass") { const a1 = $("np1").value, b1 = $("np2").value, er = $("nperr");
     if (a1.length < 4) { er.textContent = "4文字以上にしてね"; snd("error"); return; } if (a1 !== b1) { er.textContent = "2つの合言葉が違う"; snd("error"); return; }
     const salt = Math.random().toString(36).slice(2, 10), ph = await hash(a1, salt);
-    if (await mutate(D => { const m = D.members.find(x => x.id === me()); if (!m) return false; m.salt = salt; m.ph = ph; delete m.mustChange; }, "合言葉を変える")) { rememberPass(me(), a1); snd("done"); toast("合言葉を変えた。右上の🔑でいつでも見られる"); } render(); return; }
+    if (await mutate(D => { const m = D.members.find(x => x.id === me()); if (!m) return false; m.salt = salt; m.ph = ph; delete m.mustChange; }, "合言葉を変える", { wait: true })) { rememberPass(me(), a1); snd("done"); toast("合言葉を変えた。右上の🔑でいつでも見られる"); } render(); return; }
   if (d.resetpass) { const m = S.members.find(x => x.id === d.resetpass); if (!m || !isAdmin()) return; if (!confirm(m.name + "の合言葉をリセットする?\n仮の合言葉が出るので、本人に伝える。")) return;
     const code = Array.from(crypto.getRandomValues(new Uint8Array(6)), x => "abcdefghjkmnpqrstuvwxyz23456789"[x % 31]).join(""), salt = Math.random().toString(36).slice(2, 10), ph = await hash(code, salt);
-    if (await mutate(D => { if (!isAdmin()) return false; const mm = D.members.find(x => x.id === m.id); if (!mm) return false; mm.salt = salt; mm.ph = ph; mm.mustChange = true; }, "合言葉のリセット:" + m.name)) { snd("save"); alert(m.name + "の仮の合言葉:" + code + "\n\n本人に伝えて、「前に入ったことがある」から入ってもらう。入るとすぐ、新しい合言葉を決める画面になる。"); } keepY(); return; }
+    if (await mutate(D => { if (!isAdmin()) return false; const mm = D.members.find(x => x.id === m.id); if (!mm) return false; mm.salt = salt; mm.ph = ph; mm.mustChange = true; }, "合言葉のリセット:" + m.name, { wait: true })) { snd("save"); alert(m.name + "の仮の合言葉:" + code + "\n\n本人に伝えて、「前に入ったことがある」から入ってもらう。入るとすぐ、新しい合言葉を決める画面になる。"); } keepY(); return; }
   // 追放・解除
   if (d.ban) { const m = S.members.find(x => x.id === d.ban); if (!m || m.id === S.admin) return;
     if (!confirm(m.name + "を追放する?\nその人と端末は入れなくなり、書いたものは見えなくなる。あとで解除できる。")) return;
     if (await mutate(D => { if (!isAdmin()) return false; const mm = D.members.find(x => x.id === m.id); if (!mm) return false; mm.banned = true; mm.bannedAt = Date.now(); mm.preset = null;
       const adm = D.members.find(x => x.id === D.admin), keep = ((adm && adm.pubs) || []).map(p1 => p1.kid).concat(D.ownerPub ? [D.ownerPub.kid] : []);
-      D.bannedKids = Array.from(new Set((D.bannedKids || []).concat((mm.pubs || []).map(p1 => p1.kid).filter(k => !keep.includes(k))))); if (D.room && D.room.on) delete D.room.on[mm.id]; if (D.grants) delete D.grants[mm.id]; }, "追放:" + m.name)) { snd("remove"); toast(m.name + "を追放した"); } keepY(); return; }
+      D.bannedKids = Array.from(new Set((D.bannedKids || []).concat((mm.pubs || []).map(p1 => p1.kid).filter(k => !keep.includes(k))))); if (D.room && D.room.on) delete D.room.on[mm.id]; if (D.grants) delete D.grants[mm.id]; }, "追放:" + m.name, { wait: true })) { snd("remove"); toast(m.name + "を追放した"); } keepY(); return; }
   if (d.unban) { const m = S.members.find(x => x.id === d.unban); if (!m) return; if (!confirm(m.name + "の追放を解除する?")) return;
-    if (await mutate(D => { if (!isAdmin()) return false; const mm = D.members.find(x => x.id === m.id); if (!mm) return false; mm.banned = false; delete mm.bannedAt; const ks = (mm.pubs || []).map(p1 => p1.kid); D.bannedKids = (D.bannedKids || []).filter(k => !ks.includes(k)); }, "追放の解除:" + m.name)) { snd("toggleOn"); toast(m.name + "の追放を解除した"); } keepY(); return; }
+    if (await mutate(D => { if (!isAdmin()) return false; const mm = D.members.find(x => x.id === m.id); if (!mm) return false; mm.banned = false; delete mm.bannedAt; const ks = (mm.pubs || []).map(p1 => p1.kid); D.bannedKids = (D.bannedKids || []).filter(k => !ks.includes(k)); }, "追放の解除:" + m.name, { wait: true })) { snd("toggleOn"); toast(m.name + "の追放を解除した"); } keepY(); return; }
   // 管理
   if (d.delm) { const m = S.members.find(x => x.id === d.delm); if (m && confirm(m.name + "をメンバーから外す?")) { await mutate(D => { if (!isAdmin()) return false; D.members = D.members.filter(x => x.id !== m.id); }, "メンバーを外す"); snd("remove"); keepY(); } return; }
 });
